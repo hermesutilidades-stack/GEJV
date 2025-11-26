@@ -632,16 +632,12 @@
         let currentInputId = null;
         const scannerModalOverlay = document.getElementById('scanner-modal-overlay');
         
-        // Variáveis de Estado Global (para que funções globais como performGtinSearch as acessem)
-        let products = {}; 
-        let inventory = {};
-        let inventoryHistory = {};
-
         // --- Funções de Utilidade Globais ---
         
         const formatDecimal = (num) => {
             return parseFloat(num).toFixed(1).replace('.', ',');
         };
+        window.formatDecimal = formatDecimal; // Torna global para uso em on*clicks
 
         const loadFromLocalStorage = (key, defaultValue) => {
             try {
@@ -652,7 +648,8 @@
                 return defaultValue;
             }
         };
-        
+        window.loadFromLocalStorage = loadFromLocalStorage; // Torna global
+
         const saveToLocalStorage = (key, data) => {
             try {
                 localStorage.setItem(key, JSON.stringify(data));
@@ -660,6 +657,7 @@
                 console.error("Erro ao salvar no Local Storage: ", e);
             }
         };
+        window.saveToLocalStorage = saveToLocalStorage; // Torna global
 
         // --- Funções de Modais Globais ---
         window.closeModal = () => {
@@ -691,7 +689,7 @@
         };
         window.showMessage = showMessage;
 
-        // --- Funções de Scanner e Busca Globalmente Acessíveis (CORREÇÃO AQUI) ---
+        // --- Funções de Scanner e Busca Globalmente Acessíveis (CORREÇÃO DE ESTADO AQUI) ---
         
         /**
          * Para o scanner e fecha o modal.
@@ -714,12 +712,16 @@
         
         /**
          * Função que tenta carregar as informações do item no formulário de estoque
-         * baseado no GTIN. (GLOBALMENTE ACESSÍVEL)
+         * baseado no GTIN. (AGORA CARREGA O ESTADO DE FORMA INDEPENDENTE)
          * @param {string} gtin - O código GTIN lido.
          */
         window.performGtinSearch = (gtin) => {
             if (!gtin) return;
             
+            // CARREGA O ESTADO NECESSÁRIO DIRETAMENTE DO LOCAL STORAGE
+            const allProducts = loadFromLocalStorage('products', {});
+            const currentInventory = loadFromLocalStorage('inventory', {});
+
             // Carrega referências dos inputs (precisam ser buscadas no DOM)
             const inventoryCodeInput = document.getElementById('inventory-code');
             const inventoryGtinInput = document.getElementById('inventory-gtin'); 
@@ -727,13 +729,7 @@
             const inventoryTotalInput = document.getElementById('inventory-total');
             const inventoryQuantityInput = document.getElementById('inventory-quantity');
             
-            // Garantir que os dados globais de estado estão minimamente carregados
-            if (Object.keys(products).length === 0) {
-                 products = loadFromLocalStorage('products', {});
-                 inventory = loadFromLocalStorage('inventory', {});
-            }
-
-            const foundProducts = Object.values(products).filter(p => p.gtin === gtin);
+            const foundProducts = Object.values(allProducts).filter(p => p.gtin === gtin);
             
             if (foundProducts.length === 1) {
                 const product = foundProducts[0];
@@ -741,7 +737,7 @@
                 
                 // Função auxiliar local para carregar o produto
                 const loadProductDetails = (code) => {
-                    const total = inventory.hasOwnProperty(code) ? inventory[code].total : 0;
+                    const total = currentInventory.hasOwnProperty(code) ? currentInventory[code].total : 0;
                     inventoryCodeInput.value = code;
                     inventoryGtinInput.value = product.gtin || '';
                     inventoryDescriptionInput.value = product.descricao;
@@ -750,13 +746,13 @@
                 };
                 
                 loadProductDetails(code);
-                showMessage('success', `Produto encontrado pelo GTIN: **${product.descricao}**`, 'estoque');
+                window.showMessage('success', `Produto encontrado pelo GTIN: **${product.descricao}**`, 'estoque');
             } else {
                 inventoryCodeInput.value = '';
                 inventoryGtinInput.value = gtin; // Mantém o GTIN lido no campo
                 inventoryDescriptionInput.value = '';
                 inventoryTotalInput.value = '0,0';
-                showMessage('error', `Nenhum produto encontrado com GTIN **${gtin}**.`, 'estoque');
+                window.showMessage('error', `Nenhum produto encontrado com GTIN **${gtin}** no cadastro.`, 'estoque');
             }
         };
 
@@ -764,15 +760,13 @@
         /**
          * Inicializa o scanner de código de barras.
          * DEFINIDA COMO FUNÇÃO GLOBAL (window)
-         * @param {string} inputId - O ID do campo de input (ex: 'product-gtin', 'inventory-gtin').
-         * @param {string} tabId - O ID da aba para exibir mensagens de erro (ex: 'cadastro', 'estoque').
          */
         window.startBarcodeScan = (inputId, tabId) => {
             // VERIFICAÇÃO DE SEGURANÇA:
             if (typeof Html5Qrcode === 'undefined') {
                  alert("Erro: A biblioteca do leitor de código de barras (html5-qrcode) não foi carregada. Verifique sua conexão com a internet ou o console do navegador.");
                  console.error("Html5Qrcode class is undefined. Check internet connection or if the script is blocked.");
-                 showMessage('error', 'Falha ao iniciar o leitor. Verifique o console do navegador e a conexão.', tabId);
+                 window.showMessage('error', 'Falha ao iniciar o leitor. Verifique o console do navegador e a conexão.', tabId);
                  return; 
             }
             
@@ -826,13 +820,15 @@
                 scannerResultDiv.textContent = `Erro: ${err.message}. Verifique a permissão da câmera e se o site está em HTTPS.`;
                 setTimeout(() => {
                     window.stopAndCloseScanner();
-                    showMessage('error', 'Falha ao iniciar o leitor de código de barras. Verifique HTTPS e permissões.', tabId);
+                    window.showMessage('error', 'Falha ao iniciar o leitor de código de barras. Verifique HTTPS e permissões.', tabId);
                 }, 4000); 
             });
         };
         
         // --- Funções de Seleção para Modais (Chamadas via onclick/ondblclick) ---
         
+        // Estas funções são seguras, pois só manipulam DOM ou chamam funções que agora carregam estado.
+
         window.selectZeroStockItem = (code, description, gtin) => {
             window.closeModal();
             document.getElementById('inventory-code').value = code;
@@ -868,6 +864,9 @@
         window.generateProductReport = (sector) => {
             window.closeSectorModal();
             
+            // CARREGA O ESTADO NECESSÁRIO
+            const products = loadFromLocalStorage('products', {});
+
             const filteredProducts = Object.values(products).filter(p => p.setor === sector);
             const openModal = document.querySelector('.container').openModal; // Acesso à função local
 
@@ -908,6 +907,11 @@
         };
 
         window.deleteSelectedProducts = () => {
+            // CARREGA O ESTADO NECESSÁRIO (E TEMPORARIAMENTE USA AS VARIÁVEIS LOCAIS PARA MANIPULAR)
+            let products = loadFromLocalStorage('products', {});
+            let inventory = loadFromLocalStorage('inventory', {});
+            let inventoryHistory = loadFromLocalStorage('inventoryHistory', {});
+
             const formDeleteProducts = document.getElementById('form-delete-products');
             const checkboxes = formDeleteProducts.querySelectorAll('input[name="productToDelete"]:checked');
             const codesToDelete = Array.from(checkboxes).map(cb => cb.value);
@@ -932,17 +936,30 @@
             saveToLocalStorage('inventoryHistory', inventoryHistory);
             
             window.closeDeleteModal();
-            const updateInventoryList = document.querySelector('.container').updateInventoryList; // Acesso à função local
+            
+            // Re-busca a função local
+            const updateInventoryList = document.querySelector('.container').updateInventoryList; 
             if (updateInventoryList) updateInventoryList();
+            
             window.showMessage('success', `${deletedCount} produto(s) excluído(s) permanentemente!`, 'cadastro');
-            document.getElementById('form-cadastro').reset(); // Limpa o formulário de cadastro após a exclusão
+            document.getElementById('form-cadastro').reset(); 
         };
         
         window.showHistoryPopup = (itemCode) => {
+            // CARREGA O ESTADO NECESSÁRIO
+            const products = loadFromLocalStorage('products', {});
+            const inventory = loadFromLocalStorage('inventory', {});
+            const inventoryHistory = loadFromLocalStorage('inventoryHistory', {});
+
             const history = inventoryHistory[itemCode] || [];
             const item = products[itemCode];
             const total = inventory[itemCode] ? inventory[itemCode].total : 0;
             const openModal = document.querySelector('.container').openModal; // Acesso à função local
+            
+            if (!item) {
+                 window.showMessage('error', 'Produto não encontrado para exibir histórico.', 'estoque');
+                 return;
+            }
             
             let historyHtml = `
                 <style> 
@@ -979,6 +996,9 @@
         };
         
         window.openDeleteProductModal = (sector) => {
+            // CARREGA O ESTADO NECESSÁRIO
+            const products = loadFromLocalStorage('products', {});
+            
             const productSectorInput = document.getElementById('product-sector');
             const deleteSectorNameSpan = document.getElementById('delete-sector-name');
             const formDeleteProducts = document.getElementById('form-delete-products');
@@ -1019,12 +1039,12 @@
         // Todo o restante do código da aplicação (DOM manipulation, Event Listeners)
         // =========================================================================
         document.addEventListener('DOMContentLoaded', () => {
-            // Recarrega variáveis globais de estado
-            products = loadFromLocalStorage('products', {}); 
-            inventory = loadFromLocalStorage('inventory', {});
-            inventoryHistory = loadFromLocalStorage('inventoryHistory', {});
+            // Variáveis de Estado Locais (serão carregadas no início)
+            let products = loadFromLocalStorage('products', {}); 
+            let inventory = loadFromLocalStorage('inventory', {});
+            let inventoryHistory = loadFromLocalStorage('inventoryHistory', {});
             let currentFilter = 'Açougue';
-            let selectedImportSector = ''; // Variável para a importação CSV
+            let selectedImportSector = ''; 
             
             // Seletores
             const tabButtons = document.querySelectorAll('.tab-button');
@@ -1102,6 +1122,10 @@
              * Atualiza a lista de estoque e a tabela de relatórios com base no filtro atual.
              */
             const updateInventoryList = () => {
+                // Re-carrega o estado, pois pode ter sido alterado pelas funções globais
+                products = loadFromLocalStorage('products', {}); 
+                inventory = loadFromLocalStorage('inventory', {});
+                
                 const inventoryList = document.getElementById('inventory-list');
                 const reportTableBody = document.getElementById('report-table-body');
                 
@@ -1156,7 +1180,7 @@
                             inventoryQuantityInput.focus();
                         });
                         
-                        // Clique duplo: abre histórico
+                        // Clique duplo: abre histórico (Chama a função global)
                         li.addEventListener('dblclick', () => {
                             window.showHistoryPopup(item.codigo);
                         });
@@ -1214,6 +1238,9 @@
             document.querySelector('.container').updateSearchButtonState = updateSearchButtonState; // Torna acessível externamente
 
             btnSearchProduct.addEventListener('click', () => {
+                // Re-carrega o estado para a busca
+                products = loadFromLocalStorage('products', {}); 
+
                 const code = productCodeInput.value.trim();
                 const description = productDescriptionInput.value.trim();
                 const gtin = productGtinInput.value.trim();
@@ -1292,6 +1319,10 @@
              * baseado no código.
              */
             const loadProductForInventory = (code) => {
+                // Re-carrega o estado para a busca
+                products = loadFromLocalStorage('products', {}); 
+                inventory = loadFromLocalStorage('inventory', {});
+
                 const product = products[code];
                 if (product) {
                     const total = inventory.hasOwnProperty(code) ? inventory[code].total : 0;
@@ -1339,6 +1370,11 @@
 
             formEstoque.addEventListener('submit', (e) => {
                 e.preventDefault();
+
+                // Re-carrega o estado antes da submissão
+                products = loadFromLocalStorage('products', {}); 
+                inventory = loadFromLocalStorage('inventory', {});
+                inventoryHistory = loadFromLocalStorage('inventoryHistory', {});
 
                 const code = inventoryCodeInput.value.trim();
                 const gtin = inventoryGtinInput.value.trim();
@@ -1439,6 +1475,10 @@
             
             // Abre o modal de itens não informados (Zero Stock)
             openZeroStockBtn.addEventListener('click', () => {
+                // Re-carrega o estado para o relatório
+                products = loadFromLocalStorage('products', {}); 
+                inventory = loadFromLocalStorage('inventory', {});
+                
                 const productsNotInInventory = Object.values(products)
                     .filter(p => p.setor === currentFilter)
                     .filter(p => !inventory.hasOwnProperty(p.codigo) || inventory[p.codigo].total === 0);
@@ -1595,6 +1635,9 @@
              * Processa o conteúdo do CSV e atualiza o cadastro de produtos.
              */
             const processCSV = (csvText, sector) => {
+                // Re-carrega o estado antes de importar
+                products = loadFromLocalStorage('products', {});
+                
                 const delimiter = detectDelimiter(csvText);
                 const lines = csvText.trim().split('\n');
                 
@@ -1663,7 +1706,11 @@
                 const sector = productSectorInput.value;
 
                 if (descriptionValue === 'APAGAR' && sector) {
-                    
+                    // Re-carrega o estado para a exclusão
+                    products = loadFromLocalStorage('products', {}); 
+                    inventory = loadFromLocalStorage('inventory', {});
+                    inventoryHistory = loadFromLocalStorage('inventoryHistory', {});
+
                     const productsInSector = Object.keys(products).filter(code => products[code].setor === sector);
                     
                     if (productsInSector.length === 0) {
