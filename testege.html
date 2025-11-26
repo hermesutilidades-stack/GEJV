@@ -1294,7 +1294,7 @@
                         </thead>
                         <tbody>
                             ${zeroStockItems.map(item => `
-                                <tr ondblclick="selectZeroStockItem('${item.codigo}', '${item.descricao.replace(/'/g, "\\'")}', '${item.gtin || ''}')">
+                                <tr ondblclick="selectZeroStockItem('${item.codigo}', '${item.descricao.replace(/'/g, "\\'")}', '${item.setor}', '${item.gtin || ''}')">
                                     <td>${item.codigo}</td>
                                     <td>${item.gtin || '-'}</td>
                                     <td>${item.descricao}</td>
