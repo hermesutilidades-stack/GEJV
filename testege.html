@@ -594,7 +594,14 @@
             
             // Inicia o scanner quando o modal é aberto
             if (!html5QrcodeScanner) {
-                html5QrcodeScanner = new Html5Qrcode(html5QrcodeContainerId);
+                // Tenta iniciar a instância da biblioteca. Se a biblioteca não carregou, o erro ocorre aqui.
+                try {
+                    html5QrcodeScanner = new Html5Qrcode(html5QrcodeContainerId);
+                } catch (e) {
+                    console.error("ERRO CRÍTICO: html5Qrcode não está definido. A biblioteca do scanner não carregou.", e);
+                    document.getElementById('scanner-message').textContent = 'ERRO CRÍTICO: O scanner não pode ser iniciado. Verifique o console do navegador.';
+                    return; 
+                }
             }
             
             // Callback de sucesso: chamado quando um código é lido
@@ -654,7 +661,7 @@
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            // ... (Seu código existente continua aqui) ...
+            console.log("DIAGNÓSTICO INICIAL: O Script JS foi carregado."); // LINHA DE DIAGNÓSTICO 1
 
             // Funções de armazenamento local
             const saveToLocalStorage = (key, data) => {
@@ -734,7 +741,12 @@
             });
             
             // Adiciona o listener para o botão de scanner
-            btnScanBarcode.addEventListener('click', openScannerModal);
+            if (btnScanBarcode) { // Confirma se o botão foi encontrado
+                btnScanBarcode.addEventListener('click', openScannerModal);
+                console.log("DIAGNÓSTICO FINAL: O botão do scanner foi encontrado com sucesso."); // LINHA DE DIAGNÓSTICO 2 - SUCESSO
+            } else {
+                console.error("ERRO CRÍTICO: O botão do scanner (id='btn-scan-barcode') NÃO foi encontrado no HTML."); // LINHA DE DIAGNÓSTICO 2 - ERRO
+            }
 
             // NOVA FUNÇÃO: Detecção automática de delimitador para arquivos CSV
             function detectDelimiter(csvText) {
