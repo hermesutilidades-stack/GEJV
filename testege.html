@@ -637,6 +637,14 @@
          * @param {string} tabId - O ID da aba para exibir mensagens de erro (ex: 'cadastro', 'estoque').
          */
         window.startBarcodeScan = (inputId, tabId) => {
+            // VERIFICAÇÃO DE SEGURANÇA: Se a biblioteca não carregou, avisa o usuário.
+            if (typeof Html5Qrcode === 'undefined') {
+                 alert("Erro: A biblioteca do leitor de código de barras (html5-qrcode) não foi carregada. Verifique sua conexão com a internet ou o console do navegador.");
+                 console.error("Html5Qrcode class is undefined. Check internet connection or if the script is blocked.");
+                 showMessage('error', 'Falha ao iniciar o leitor. Verifique o console do navegador e a conexão.', tabId);
+                 return; 
+            }
+            
             currentInputId = inputId;
             const readerContainerId = "reader-container";
             const scannerResultDiv = document.getElementById('scanner-result');
