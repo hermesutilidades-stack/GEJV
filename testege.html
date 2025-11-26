@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciador de Estoque e Produtos</title>
-    <script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -431,7 +430,7 @@
                 </div>
             </div>
 
-            <div class="tab-content active" data-tab="estoque">
+            <div class="tab-content" data-tab="estoque">
                 <div class="card">
                     <div class="card-header">
                         <h2>Gerenciamento de Estoque</h2>
@@ -589,53 +588,57 @@
     </div>
 
     <script>
-        // 3. VARIÁVEIS GLOBAIS E NOVAS FUNÇÕES DO SCANNER
+        // Variáveis globais (não dependem do DOM)
         let html5QrCode = null;
         let currentInputId = null;
-        const scannerModalOverlay = document.getElementById('scanner-modal-overlay');
 
         /**
          * Para o scanner e fecha o modal.
-         * É necessário ser window.stopAndCloseScanner para ser acessível pelo onclick do botão X.
          */
         window.stopAndCloseScanner = () => {
+            const scannerModalOverlay = document.getElementById('scanner-modal-overlay');
+            
             if (html5QrCode && html5QrCode.isScanning) {
                 html5QrCode.stop().then(() => {
-                    scannerModalOverlay.style.display = 'none';
+                    if(scannerModalOverlay) scannerModalOverlay.style.display = 'none';
                     html5QrCode.clear();
                 }).catch(err => {
                     console.error("Erro ao parar o scanner:", err);
-                    scannerModalOverlay.style.display = 'none';
+                    if(scannerModalOverlay) scannerModalOverlay.style.display = 'none';
                     html5QrCode.clear();
                 });
             } else {
                 if (html5QrCode) html5QrCode.clear();
-                scannerModalOverlay.style.display = 'none';
+                if(scannerModalOverlay) scannerModalOverlay.style.display = 'none';
             }
         };
 
         /**
          * Inicializa o scanner de código de barras.
-         * @param {string} inputId - O ID do campo de input (ex: 'product-gtin', 'inventory-gtin').
-         * @param {string} tabId - O ID da aba para exibir mensagens de erro (ex: 'cadastro', 'estoque').
          */
         window.startBarcodeScan = (inputId, tabId) => {
             currentInputId = inputId;
             const readerContainerId = "reader-container";
             const scannerResultDiv = document.getElementById('scanner-result');
+            const scannerModalOverlay = document.getElementById('scanner-modal-overlay'); // <-- CORREÇÃO: Pega o elemento aqui!
+
+            if (!scannerModalOverlay) {
+                console.error("Erro: Elemento scanner-modal-overlay não encontrado no DOM.");
+                return;
+            }
 
             if (html5QrCode) {
                 html5QrCode.clear();
             }
             
             // Cria a instância do scanner
+            // A classe Html5Qrcode agora deve estar definida, pois o script foi movido para o final do <body>
             html5QrCode = new Html5Qrcode(readerContainerId);
 
             const config = {
                 fps: 10,
                 qrbox: { width: 250, height: 100 }, // Otimizado para códigos de barras longos (1D)
                 disableFlip: false,
-                // formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39],
             };
 
             const onScanSuccess = (decodedText, decodedResult) => {
@@ -646,7 +649,6 @@
                 
                 // Se for o GTIN de estoque, aciona a busca automática
                 if (currentInputId === 'inventory-gtin') {
-                    // Chamada à função de busca existente
                     performGtinSearch(); 
                 }
 
@@ -657,8 +659,7 @@
             };
 
             const onScanError = (errorMessage) => {
-                // Ignora erros de leitura contínuos para não poluir o console.
-                // Erros de decodificação não devem fechar o scanner.
+                // Ignora erros de leitura contínuos
             };
 
             // Abre o modal
@@ -675,7 +676,6 @@
             ).catch(err => {
                 scannerResultDiv.textContent = `Erro: ${err.message}. Verifique a permissão da câmera e se o site está em HTTPS.`;
                 
-                // Fecha após o erro para não travar
                 setTimeout(() => {
                     stopAndCloseScanner();
                     showMessage('error', 'Falha ao iniciar o leitor de código de barras. Verifique HTTPS e permissões.', tabId);
@@ -683,8 +683,6 @@
             });
         };
         
-        // FIM DAS NOVAS FUNÇÕES DO SCANNER
-
         document.addEventListener('DOMContentLoaded', () => {
             // Funções de armazenamento local
             const saveToLocalStorage = (key, data) => {
@@ -1077,7 +1075,7 @@
                     inventoryDescriptionInput.value = productFound.descricao;
 
                     // Busca o total no inventário
-                    const total = inventory[productFound.codigo] ? inventory[productFound.codigo].total : 0;
+                    const total = inventory[productFound.codigo] ? inventory[productCodeInput.value].total : 0;
                     inventoryTotalInput.value = total;
 
                     // Exibe a mensagem de sucesso e foca no campo de quantidade
@@ -1491,12 +1489,18 @@
             exportPdfBtn.addEventListener('click', () => {
                 if (!window.jsPDF) {
                     showMessage('error', 'Aguarde um momento, o script de PDF está sendo carregado ou falhou. Tente novamente em alguns segundos.', 'relatorio');
-                    // Carrega a biblioteca se não estiver carregada (adiamento para otimizar)
-                    const script = document.createElement('script');
-                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-                    document.head.appendChild(script);
-                    script.onload = () => {
-                        // Tenta novamente após carregar
+                    
+                    // Adiciona os scripts de PDF no final do body
+                    const jspdfScript = document.createElement('script');
+                    jspdfScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+                    document.body.appendChild(jspdfScript);
+
+                    const autotableScript = document.createElement('script');
+                    autotableScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js';
+                    document.body.appendChild(autotableScript);
+
+                    autotableScript.onload = () => {
+                        // Tenta novamente após carregar as duas bibliotecas
                         if (window.jsPDF) {
                             exportToPdfLogic();
                         } else {
@@ -1601,6 +1605,9 @@
             updateSearchButtonState();
         });
     </script>
+    
+    <script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 </body>
