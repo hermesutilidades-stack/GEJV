@@ -124,7 +124,7 @@
         .form-group {
             margin-bottom: 16px;
         }
-        .input-group { /* Novo estilo para agrupar input e botão */
+        .input-group { 
             display: flex;
             align-items: center;
         }
@@ -142,7 +142,7 @@
             border-bottom-right-radius: 0;
             flex-grow: 1;
         }
-        .barcode-btn { /* Estilo para o botão do scanner */
+        .barcode-btn { 
             padding: 8px 12px;
             border: 1px solid #cbd5e1;
             border-left: none;
@@ -155,7 +155,7 @@
             font-size: 1.2rem;
             line-height: 1;
             transition: background-color 0.2s;
-            height: 42px; /* Ajusta a altura com o input */
+            height: 42px; 
         }
         .barcode-btn:hover {
             background-color: #cbd5e1;
@@ -274,7 +274,7 @@
             width: 100%;
             height: 100%;
             background-color: rgba(0, 0, 0, 0.7);
-            display: none; /* Inicia escondido */
+            display: none; 
             justify-content: center;
             align-items: center;
             z-index: 1000;
@@ -402,7 +402,7 @@
                             <label for="product-gtin">GTIN (Código de Barras) - Opcional</label>
                             <div class="input-group">
                                 <input type="number" id="product-gtin" step="1" onkeydown="return event.key !== 'e' && event.key !== 'E'">
-                                <button type="button" class="barcode-btn" title="Ler Código de Barras" onclick="window.startBarcodeScan('product-gtin', 'cadastro')">&#x2328;</button>
+                                <button type="button" class="barcode-btn" title="Ler Código de Barras" data-target-input="product-gtin" data-target-tab="cadastro">&#x2328;</button>
                             </div>
                         </div>
                         <div class="form-group">
@@ -456,7 +456,7 @@
                             <label for="inventory-gtin">GTIN (Código de Barras) - Opcional</label>
                             <div class="input-group">
                                 <input type="number" id="inventory-gtin" step="1" onkeydown="return event.key !== 'e' && event.key !== 'E'">
-                                <button type="button" class="barcode-btn" title="Ler Código de Barras" onclick="window.startBarcodeScan('inventory-gtin', 'estoque')">&#x2328;</button>
+                                <button type="button" class="barcode-btn" title="Ler Código de Barras" data-target-input="inventory-gtin" data-target-tab="estoque">&#x2328;</button>
                             </div>
                         </div>
                         <div class="form-group">
@@ -617,10 +617,23 @@
          * Inicializa o scanner de código de barras.
          */
         window.startBarcodeScan = (inputId, tabId) => {
+            // Verifica se a biblioteca Html5Qrcode está disponível ANTES de prosseguir
+            if (typeof Html5Qrcode === 'undefined') {
+                const scannerModalOverlay = document.getElementById('scanner-modal-overlay');
+                const scannerResultDiv = document.getElementById('scanner-result');
+                if(scannerResultDiv) scannerResultDiv.textContent = 'Erro: Biblioteca do scanner ainda não carregada. Tente novamente em 1 segundo.';
+                if(scannerModalOverlay) scannerModalOverlay.style.display = 'flex';
+                
+                console.error("Erro Crítico: Html5Qrcode is not defined.");
+                // Fechar após 4 segundos para o usuário ver a mensagem
+                setTimeout(window.stopAndCloseScanner, 4000); 
+                return;
+            }
+
             currentInputId = inputId;
             const readerContainerId = "reader-container";
             const scannerResultDiv = document.getElementById('scanner-result');
-            const scannerModalOverlay = document.getElementById('scanner-modal-overlay'); // <-- CORREÇÃO: Pega o elemento aqui!
+            const scannerModalOverlay = document.getElementById('scanner-modal-overlay'); 
 
             if (!scannerModalOverlay) {
                 console.error("Erro: Elemento scanner-modal-overlay não encontrado no DOM.");
@@ -631,13 +644,12 @@
                 html5QrCode.clear();
             }
             
-            // Cria a instância do scanner
-            // A classe Html5Qrcode agora deve estar definida, pois o script foi movido para o final do <body>
+            // Cria a instância do scanner (Agora a classe deve estar definida)
             html5QrCode = new Html5Qrcode(readerContainerId);
 
             const config = {
                 fps: 10,
-                qrbox: { width: 250, height: 100 }, // Otimizado para códigos de barras longos (1D)
+                qrbox: { width: 250, height: 100 }, 
                 disableFlip: false,
             };
 
@@ -669,7 +681,7 @@
 
             // Inicia o scanner
             html5QrCode.start(
-                { facingMode: "environment" }, // Prioriza a câmera traseira
+                { facingMode: "environment" }, 
                 config,
                 onScanSuccess,
                 onScanError
@@ -750,6 +762,9 @@
             const productGtinInput = document.getElementById('product-gtin'); 
             const productDescriptionInput = document.getElementById('product-description');
             const productSectorInput = document.getElementById('product-sector');
+            
+            // Seletores dos botões de código de barras
+            const barcodeButtons = document.querySelectorAll('.barcode-btn');
 
             // Lógica para limitar a quantidade de casas decimais
             inventoryQuantityInput.addEventListener('input', (event) => {
@@ -763,7 +778,7 @@
             
             // NOVA FUNÇÃO: Detecção automática de delimitador para arquivos CSV
             function detectDelimiter(csvText) {
-                const commonDelimiters = [',', ';', '\t', '|']; // Vírgula, Ponto-e-vírgula, Tab, Pipe
+                const commonDelimiters = [',', ';', '\t', '|']; 
                 const lines = csvText.trim().split('\n');
                 if (lines.length === 0) return ',';
                 
@@ -772,17 +787,13 @@
                 let maxCount = 0;
 
                 commonDelimiters.forEach(delimiter => {
-                    // Usa regex para contar ocorrências
                     const count = (firstLine.match(new RegExp('\\' + delimiter, 'g')) || []).length;
-
-                    // Verifica se a contagem é maior e se o delimitador aparece
                     if (count > maxCount) {
                         maxCount = count;
                         bestDelimiter = delimiter;
                     }
                 });
 
-                // Prioriza ponto-e-vírgula se for o padrão Excel PT-BR e não houver outro delimitador
                 if (firstLine.includes(';') && maxCount === 0) {
                     return ';';
                 }
@@ -790,7 +801,7 @@
                 if (maxCount > 0) {
                     return bestDelimiter;
                 }
-                return ','; // Padrão, se nada for detectado
+                return ','; 
             }
 
             // Funções para abrir e fechar os modais
@@ -984,6 +995,16 @@
                         button.classList.add('active');
                         updateInventoryList();
                     }
+                });
+            });
+
+            // CORREÇÃO: Adiciona listeners de clique aos botões de código de barras
+            barcodeButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const inputId = button.dataset.targetInput;
+                    const tabId = button.dataset.targetTab;
+                    // Chama a função global window.startBarcodeScan
+                    window.startBarcodeScan(inputId, tabId);
                 });
             });
 
@@ -1215,7 +1236,7 @@
                     div.className = 'delete-list-item';
                     div.innerHTML = `
                         <input type="checkbox" id="delete-${product.codigo}" name="product-code" value="${product.codigo}">
-                        <label for="delete-${product.codigo}">**${product.codigo}** | ${product.descricao} | Estoque: ${inventory[product.codigo]?.total || 0}</label>
+                        <label for="delete-${product.codigo}">**${product.codigo}** | ${product.gtin || '-'} | ${product.descricao} | Estoque: ${inventory[product.codigo]?.total || 0}</label>
                     `;
                     formDeleteProducts.appendChild(div);
                 });
@@ -1380,28 +1401,20 @@
                     lines.forEach((line, index) => {
                         const parts = line.split(delimiter).map(p => p.trim().replace(/"/g, ''));
                         
-                        // Valida a linha (espera Código e Descrição, o GTIN é opcional)
-                        // Estrutura esperada: [Código, GTIN (opcional), Descrição]
                         if (parts.length >= 2) {
                             const codigo = parts[0];
-                            // Tenta mapear os campos, assumindo que GTIN pode estar na segunda ou terceira posição
-                            // A ordem padrão é: Código, Descrição, GTIN (mas pode ser: Código, GTIN, Descrição)
                             let gtin = '';
                             let descricao = '';
 
                             if (parts.length === 3) {
-                                // Assume Código, GTIN, Descrição
                                 gtin = parts[1];
                                 descricao = parts[2];
 
-                                // Pequena checagem para ver se GTIN parece um número e Descrição é texto
                                 if (isNaN(gtin) || !isNaN(descricao)) {
-                                     // Se a suposição falhar, assume Código, Descrição, GTIN
-                                    gtin = parts[2];
-                                    descricao = parts[1];
+                                     gtin = parts[2];
+                                     descricao = parts[1];
                                 }
                             } else if (parts.length === 2) {
-                                // Assume Código, Descrição
                                 descricao = parts[1];
                                 gtin = '';
                             }
@@ -1409,14 +1422,11 @@
 
                             if (codigo && descricao) {
                                 if (products.hasOwnProperty(codigo)) {
-                                    // Atualiza o item existente
                                     products[codigo].gtin = gtin;
                                     products[codigo].descricao = descricao;
                                     products[codigo].setor = sectorToImport;
                                 } else {
-                                    // Cadastra novo item
                                     products[codigo] = { codigo, gtin, descricao, setor: sectorToImport };
-                                    // Inicializa estoque para novos itens
                                     if (!inventory.hasOwnProperty(codigo)) {
                                         inventory[codigo] = { total: 0 };
                                     }
@@ -1460,13 +1470,10 @@
                     return;
                 }
 
-                // Cria o cabeçalho do CSV
                 let csv = 'Código,GTIN,Descrição,Setor,Estoque Total\n';
 
                 allProducts.forEach(product => {
                     const total = inventory[product.codigo] ? inventory[product.codigo].total : 0;
-                    // Usa ponto e vírgula como delimitador (padrão brasileiro)
-                    // Envolve a descrição com aspas para evitar problemas com vírgulas no texto
                     csv += `${product.codigo};${product.gtin || ''};"${product.descricao}";${product.setor};${total}\n`;
                 });
 
@@ -1490,7 +1497,6 @@
                 if (!window.jsPDF) {
                     showMessage('error', 'Aguarde um momento, o script de PDF está sendo carregado ou falhou. Tente novamente em alguns segundos.', 'relatorio');
                     
-                    // Adiciona os scripts de PDF no final do body
                     const jspdfScript = document.createElement('script');
                     jspdfScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
                     document.body.appendChild(jspdfScript);
@@ -1500,7 +1506,6 @@
                     document.body.appendChild(autotableScript);
 
                     autotableScript.onload = () => {
-                        // Tenta novamente após carregar as duas bibliotecas
                         if (window.jsPDF) {
                             exportToPdfLogic();
                         } else {
@@ -1552,23 +1557,21 @@
                     inventoryHistory = {};
                     saveToLocalStorage('inventory', inventory);
                     saveToLocalStorage('inventoryHistory', inventoryHistory);
-                    updateInventoryList(); // Atualiza a lista para mostrar zero
+                    updateInventoryList(); 
                     showMessage('success', 'Todos os itens do estoque e histórico foram apagados.', 'gerenciar');
                 }
             });
 
             // Lógica de Apagar Todos Itens Cadastrados (Gerenciar - Requer confirmação por texto)
             clearProductsBySectorBtn.addEventListener('click', () => {
-                // A verificação deve ser feita no campo 'Descrição do Item' da aba 'Cadastro'
                 const confirmText = productDescriptionInput.value.trim().toUpperCase();
                 
-                if (confirmText === 'APAGAR TUDO') { // Alterando a confirmação para algo mais explícito
+                if (confirmText === 'APAGAR TUDO') { 
                     const productsToDelete = Object.keys(products);
                     
                     if (productsToDelete.length > 0) {
                         const deletedCount = productsToDelete.length;
 
-                        // Apaga todos os dados
                         products = {};
                         inventory = {};
                         inventoryHistory = {};
@@ -1590,24 +1593,16 @@
             });
 
             // Inicialização da página
-            // 1. Ativa a aba inicial (Estoque)
             document.querySelector('.tab-content[data-tab="estoque"]').classList.add('active');
-            
-            // 2. Ativa o filtro inicial (Açougue) e atualiza a lista
             filterButtons.forEach(btn => btn.classList.remove('active'));
             acougueFilterBtn.classList.add('active');
             currentFilter = 'Açougue';
-
-            // 3. Carrega os dados na lista
             updateInventoryList();
-
-            // 4. Inicializa o estado do botão de pesquisa
             updateSearchButtonState();
         });
     </script>
     
     <script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 </body>
