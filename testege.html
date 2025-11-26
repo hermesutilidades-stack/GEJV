@@ -413,7 +413,7 @@
                     <div id="message-cadastro" class="message"></div>
                     <form id="form-cadastro">
                         <div class="form-group">
-                            <label for="product-code">Código do Item</label>
+                            <label for="product-code">Código do Item (Interno)</label>
                             <input type="number" id="product-code" required step="1" onkeydown="return event.key !== 'e' && event.key !== 'E'">
                         </div>
                         <div class="form-group">
@@ -467,7 +467,7 @@
                     <div id="message-estoque" class="message"></div>
                     <form id="form-estoque">
                         <div class="form-group">
-                            <label for="inventory-code">Código do Item</label>
+                            <label for="inventory-code">Código do Item (Interno)</label>
                             <input type="number" id="inventory-code" required step="1" onkeydown="return event.key !== 'e' && event.key !== 'E'">
                         </div>
                         <div class="form-group">
@@ -1300,7 +1300,7 @@
                                 <tr>
                                     <td>${item.codigo}</td>
                                     <td>${item.gtin || '-'}</td>
-                                    <td><td>${item.descricao}</td>
+                                    <td>${item.descricao}</td>
                                 </tr>
                             `).join('') : '<tr><td colspan="3" style="text-align: center;">Nenhum produto cadastrado neste setor.</td></tr>'}
                         </tbody>
