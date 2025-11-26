@@ -1,22 +1,25 @@
-<script>
+// Remova toda a sua tag <script> existente e insira esta nova.
+// Note que as funções estão definidas diretamente (function nome()), e não como window.nome = ().
+// Isso garante o escopo global imediato.
+    <script>
         // =========================================================================
         // FUNÇÕES CRÍTICAS E VARIÁVEIS DE ESTADO GLOBAIS (DEFINIDAS NO TOPO)
         // =========================================================================
         
         let html5QrCode = null;
         let currentInputId = null;
-        window.currentFilter = 'Açougue'; 
-        window.selectedImportSector = ''; 
+        let currentFilter = 'Açougue'; 
+        let selectedImportSector = ''; 
         
         const scannerModalOverlay = document.getElementById('scanner-modal-overlay');
 
-        // --- Funções de Utilidade Globais (Recomendadas para CHAMADAS ONCLICK) ---
+        // --- Funções de Utilidade Globais (Sintaxe Clássica para ONCLICK) ---
         
-        window.formatDecimal = (num) => {
+        function formatDecimal(num) {
             return parseFloat(num).toFixed(1).replace('.', ',');
-        };
+        }
 
-        window.loadFromLocalStorage = (key, defaultValue) => {
+        function loadFromLocalStorage(key, defaultValue) {
             try {
                 const data = localStorage.getItem(key);
                 return data ? JSON.parse(data) : defaultValue;
@@ -24,17 +27,17 @@
                 console.error("Erro ao carregar do Local Storage: ", e);
                 return defaultValue;
             }
-        };
+        }
 
-        window.saveToLocalStorage = (key, data) => {
+        function saveToLocalStorage(key, data) {
             try {
                 localStorage.setItem(key, JSON.stringify(data));
             } catch (e) {
                 console.error("Erro ao salvar no Local Storage: ", e);
             }
-        };
+        }
 
-        window.showMessage = (type, content, tabId) => {
+        function showMessage(type, content, tabId) {
             const messageDiv = document.getElementById(`message-${tabId}`);
             if (messageDiv) {
                 messageDiv.innerHTML = content;
@@ -44,36 +47,36 @@
                     messageDiv.style.display = 'none';
                 }, 5000);
             }
-        };
+        }
 
         // --- Funções de Modais Globais ---
         
-        window.openModal = (title, content) => {
+        function openModal(title, content) {
             document.getElementById('modal-title').textContent = title;
             document.getElementById('modal-body').innerHTML = content;
             document.getElementById('report-modal-overlay').style.display = 'flex';
-        };
+        }
         
-        window.closeModal = () => {
+        function closeModal() {
             document.getElementById('report-modal-overlay').style.display = 'none';
-        };
+        }
         
-        window.closeSectorModal = () => {
+        function closeSectorModal() {
             document.getElementById('sector-select-modal-overlay').style.display = 'none';
-        };
+        }
 
-        window.closeCsvSectorModal = () => {
+        function closeCsvSectorModal() {
             document.getElementById('csv-sector-modal-overlay').style.display = 'none';
-        };
+        }
 
-        window.closeDeleteModal = () => {
+        function closeDeleteModal() {
             document.getElementById('delete-product-modal-overlay').style.display = 'none';
-        };
+        }
 
         // --- FUNÇÕES DE LÓGICA PRINCIPAL GLOBAIS ---
         
         /** Lógica de Busca e Scanner (Totalmente Global) */
-        window.stopAndCloseScanner = () => {
+        function stopAndCloseScanner() {
             if (html5QrCode && html5QrCode.isScanning) {
                 html5QrCode.stop().then(() => {
                     if (scannerModalOverlay) scannerModalOverlay.style.display = 'none';
@@ -87,13 +90,13 @@
                 if (html5QrCode) html5QrCode.clear();
                 if (scannerModalOverlay) scannerModalOverlay.style.display = 'none';
             }
-        };
+        }
         
-        window.performGtinSearch = (gtin) => {
+        function performGtinSearch(gtin) {
             if (!gtin) return;
             
-            const allProducts = window.loadFromLocalStorage('products', {});
-            const currentInventory = window.loadFromLocalStorage('inventory', {});
+            const allProducts = loadFromLocalStorage('products', {});
+            const currentInventory = loadFromLocalStorage('inventory', {});
 
             const inventoryCodeInput = document.getElementById('inventory-code');
             const inventoryGtinInput = document.getElementById('inventory-gtin'); 
@@ -111,24 +114,24 @@
                 if (inventoryCodeInput) inventoryCodeInput.value = code;
                 if (inventoryGtinInput) inventoryGtinInput.value = product.gtin || '';
                 if (inventoryDescriptionInput) inventoryDescriptionInput.value = product.descricao;
-                if (inventoryTotalInput) inventoryTotalInput.value = window.formatDecimal(total);
+                if (inventoryTotalInput) inventoryTotalInput.value = formatDecimal(total);
                 if (inventoryQuantityInput) inventoryQuantityInput.focus();
                 
-                window.showMessage('success', `Produto encontrado pelo GTIN: **${product.descricao}**`, 'estoque');
+                showMessage('success', `Produto encontrado pelo GTIN: **${product.descricao}**`, 'estoque');
             } else {
                 if (inventoryCodeInput) inventoryCodeInput.value = '';
                 if (inventoryGtinInput) inventoryGtinInput.value = gtin; 
                 if (inventoryDescriptionInput) inventoryDescriptionInput.value = '';
                 if (inventoryTotalInput) inventoryTotalInput.value = '0,0';
-                window.showMessage('error', `Nenhum produto encontrado com GTIN **${gtin}** no cadastro.`, 'estoque');
+                showMessage('error', `Nenhum produto encontrado com GTIN **${gtin}** no cadastro.`, 'estoque');
             }
-        };
+        }
 
         /** A função que é chamada pelo onclick nos botões de câmera! */
-        window.startBarcodeScan = (inputId, tabId) => {
+        function startBarcodeScan(inputId, tabId) {
             if (typeof Html5Qrcode === 'undefined') {
                  alert("Erro: A biblioteca do leitor de código de barras (html5-qrcode) não foi carregada. Verifique sua conexão com a internet ou o console do navegador.");
-                 window.showMessage('error', 'Falha ao iniciar o leitor. Verifique o console do navegador e a conexão.', tabId);
+                 showMessage('error', 'Falha ao iniciar o leitor. Verifique o console do navegador e a conexão.', tabId);
                  return; 
             }
             
@@ -143,7 +146,7 @@
             // Certifica-se de que o elemento existe antes de tentar instanciar
             if (!document.getElementById(readerContainerId)) {
                 console.error(`Elemento com ID ${readerContainerId} não encontrado no DOM.`);
-                window.showMessage('error', 'Falha estrutural: O contêiner do scanner não foi encontrado. Recarregue a página.', tabId);
+                showMessage('error', 'Falha estrutural: O contêiner do scanner não foi encontrado. Recarregue a página.', tabId);
                 return;
             }
             
@@ -160,11 +163,11 @@
                 if (scannerResultDiv) scannerResultDiv.textContent = `Sucesso: ${decodedText}`;
                 
                 if (currentInputId === 'inventory-gtin') {
-                    window.performGtinSearch(decodedText); 
+                    performGtinSearch(decodedText); 
                 }
 
                 setTimeout(() => {
-                    window.stopAndCloseScanner();
+                    stopAndCloseScanner();
                 }, 500); 
             };
 
@@ -183,18 +186,18 @@
             ).catch(err => {
                 if (scannerResultDiv) scannerResultDiv.textContent = `Erro: ${err.message}. Verifique a permissão da câmera e se o site está em HTTPS.`;
                 setTimeout(() => {
-                    window.stopAndCloseScanner();
-                    window.showMessage('error', 'Falha ao iniciar o leitor de código de barras. Verifique HTTPS e permissões.', tabId);
+                    stopAndCloseScanner();
+                    showMessage('error', 'Falha ao iniciar o leitor de código de barras. Verifique HTTPS e permissões.', tabId);
                 }, 4000); 
             });
-        };
+        }
         
         /**
          * Atualiza a lista de estoque e a tabela de relatórios com base no filtro global.
          */
-        window.updateInventoryList = () => {
-            const products = window.loadFromLocalStorage('products', {}); 
-            const inventory = window.loadFromLocalStorage('inventory', {});
+        function updateInventoryList() {
+            const products = loadFromLocalStorage('products', {}); 
+            const inventory = loadFromLocalStorage('inventory', {});
             
             const inventoryList = document.getElementById('inventory-list');
             const reportTableBody = document.getElementById('report-table-body');
@@ -204,10 +207,10 @@
             
             inventoryList.innerHTML = '';
             reportTableBody.innerHTML = '';
-            reportSectorNameSpan.textContent = window.currentFilter;
+            reportSectorNameSpan.textContent = currentFilter;
 
             const allProducts = Object.values(products);
-            const filteredProducts = window.currentFilter ? allProducts.filter(p => p.setor === window.currentFilter) : allProducts;
+            const filteredProducts = currentFilter ? allProducts.filter(p => p.setor === currentFilter) : allProducts;
 
             // Combina dados do produto com o total do estoque
             const itemsWithStock = filteredProducts.map(product => {
@@ -235,7 +238,7 @@
                     
                     li.innerHTML = ` 
                         <span>${item.codigo}: ${item.descricao}${displayGtin}</span> 
-                        <span style="color: ${item.total < 0 ? '#dc3545' : '#007bff'}; font-weight: 700;">Total: ${window.formatDecimal(item.total)}</span> 
+                        <span style="color: ${item.total < 0 ? '#dc3545' : '#007bff'}; font-weight: 700;">Total: ${formatDecimal(item.total)}</span> 
                     `;
                     
                     li.addEventListener('click', () => {
@@ -244,13 +247,13 @@
                         document.getElementById('inventory-code').value = item.codigo;
                         document.getElementById('inventory-gtin').value = item.gtin || '';
                         document.getElementById('inventory-description').value = item.descricao;
-                        document.getElementById('inventory-total').value = window.formatDecimal(item.total);
+                        document.getElementById('inventory-total').value = formatDecimal(item.total);
                         document.getElementById('inventory-quantity').value = '';
                         document.getElementById('inventory-quantity').focus();
                     });
                     
                     li.addEventListener('dblclick', () => {
-                        window.showHistoryPopup(item.codigo);
+                        showHistoryPopup(item.codigo);
                     });
                     
                     inventoryList.appendChild(li);
@@ -279,15 +282,15 @@
                         <td>${item.codigo}</td> 
                         <td>${item.descricao}</td> 
                         <td>${item.setor}</td> 
-                        <td style="color: ${item.total < 0 ? '#dc3545' : 'inherit'}; font-weight: 600;">${window.formatDecimal(item.total)}</td> 
+                        <td style="color: ${item.total < 0 ? '#dc3545' : 'inherit'}; font-weight: 600;">${formatDecimal(item.total)}</td> 
                     `;
                     reportTableBody.appendChild(trReport);
                 });
             }
-        };
+        }
 
         /** Lógica para desabilitar/habilitar o botão de pesquisa (Cadastro) */
-        window.updateSearchButtonState = () => {
+        function updateSearchButtonState() {
             const productCodeInput = document.getElementById('product-code');
             const productDescriptionInput = document.getElementById('product-description');
             const productGtinInput = document.getElementById('product-gtin');
@@ -304,44 +307,44 @@
             const isOnlyGtinFilled = code.length === 0 && description.length === 0 && gtin.length > 0;
             
             btnSearchProduct.disabled = !(isOnlyCodeFilled || isOnlyDescriptionFilled || isOnlyGtinFilled);
-        };
+        }
         
         // --- Funções de Seleção para Modais (Permanece Global) ---
         
-        window.selectZeroStockItem = (code, description, gtin) => {
-            window.closeModal();
+        function selectZeroStockItem(code, description, gtin) {
+            closeModal();
             document.getElementById('inventory-code').value = code;
             document.getElementById('inventory-gtin').value = gtin || '';
             document.getElementById('inventory-description').value = description;
             document.getElementById('inventory-total').value = 0;
             document.getElementById('inventory-quantity').value = '';
             document.getElementById('inventory-quantity').focus();
-        };
+        }
 
-        window.selectFoundItem = (code, description, total, gtin) => {
-            window.closeModal();
+        function selectFoundItem(code, description, total, gtin) {
+            closeModal();
             document.getElementById('inventory-code').value = code;
             document.getElementById('inventory-gtin').value = gtin || '';
             document.getElementById('inventory-description').value = description;
-            document.getElementById('inventory-total').value = window.formatDecimal(total);
+            document.getElementById('inventory-total').value = formatDecimal(total);
             document.getElementById('inventory-quantity').value = '';
             document.getElementById('inventory-quantity').focus();
-        };
+        }
 
-        window.selectProductItem = (code, description, sector, gtin) => {
-            window.closeModal();
+        function selectProductItem(code, description, sector, gtin) {
+            closeModal();
             document.getElementById('product-code').value = code;
             document.getElementById('product-gtin').value = gtin || '';
             document.getElementById('product-description').value = description;
             document.getElementById('product-sector').value = sector;
             
-            window.updateSearchButtonState();
-        };
+            updateSearchButtonState();
+        }
         
-        window.generateProductReport = (sector) => {
-            window.closeSectorModal();
+        function generateProductReport(sector) {
+            closeSectorModal();
             
-            const products = window.loadFromLocalStorage('products', {});
+            const products = loadFromLocalStorage('products', {});
             const filteredProducts = Object.values(products).filter(p => p.setor === sector);
 
             let reportHtml = `
@@ -370,27 +373,27 @@
                     </tbody>
                 </table>
             `;
-            window.openModal(`Relatório de Produtos Cadastrados - ${sector}`, reportHtml);
-        };
+            openModal(`Relatório de Produtos Cadastrados - ${sector}`, reportHtml);
+        }
         
-        window.openFileInput = (sector) => {
-            window.closeCsvSectorModal();
+        function openFileInput(sector) {
+            closeCsvSectorModal();
             const fileInput = document.getElementById('file-input');
-            window.selectedImportSector = sector; // Define o setor de importação
+            selectedImportSector = sector; // Define o setor de importação
             if (fileInput) fileInput.click();
-        };
+        }
 
-        window.deleteSelectedProducts = () => {
-            let products = window.loadFromLocalStorage('products', {});
-            let inventory = window.loadFromLocalStorage('inventory', {});
-            let inventoryHistory = window.loadFromLocalStorage('inventoryHistory', {});
+        function deleteSelectedProducts() {
+            let products = loadFromLocalStorage('products', {});
+            let inventory = loadFromLocalStorage('inventory', {});
+            let inventoryHistory = loadFromLocalStorage('inventoryHistory', {});
 
             const formDeleteProducts = document.getElementById('form-delete-products');
             const checkboxes = formDeleteProducts ? formDeleteProducts.querySelectorAll('input[name="productToDelete"]:checked') : [];
             const codesToDelete = Array.from(checkboxes).map(cb => cb.value);
             
             if (codesToDelete.length === 0) {
-                window.showMessage('error', 'Selecione pelo menos um produto para excluir.', 'cadastro');
+                showMessage('error', 'Selecione pelo menos um produto para excluir.', 'cadastro');
                 return;
             }
 
@@ -404,30 +407,30 @@
                 }
             });
 
-            window.saveToLocalStorage('products', products);
-            window.saveToLocalStorage('inventory', inventory);
-            window.saveToLocalStorage('inventoryHistory', inventoryHistory);
+            saveToLocalStorage('products', products);
+            saveToLocalStorage('inventory', inventory);
+            saveToLocalStorage('inventoryHistory', inventoryHistory);
             
-            window.closeDeleteModal();
+            closeDeleteModal();
             
-            window.updateInventoryList();
+            updateInventoryList();
             
-            window.showMessage('success', `${deletedCount} produto(s) excluído(s) permanentemente!`, 'cadastro');
+            showMessage('success', `${deletedCount} produto(s) excluído(s) permanentemente!`, 'cadastro');
             const formCadastro = document.getElementById('form-cadastro');
             if (formCadastro) formCadastro.reset(); 
-        };
+        }
         
-        window.showHistoryPopup = (itemCode) => {
-            const products = window.loadFromLocalStorage('products', {});
-            const inventory = window.loadFromLocalStorage('inventory', {});
-            const inventoryHistory = window.loadFromLocalStorage('inventoryHistory', {});
+        function showHistoryPopup(itemCode) {
+            const products = loadFromLocalStorage('products', {});
+            const inventory = loadFromLocalStorage('inventory', {});
+            const inventoryHistory = loadFromLocalStorage('inventoryHistory', {});
 
             const history = inventoryHistory[itemCode] || [];
             const item = products[itemCode];
             const total = inventory[itemCode] ? inventory[itemCode].total : 0;
             
             if (!item) {
-                 window.showMessage('error', 'Produto não encontrado para exibir histórico.', 'estoque');
+                 showMessage('error', 'Produto não encontrado para exibir histórico.', 'estoque');
                  return;
             }
             
@@ -440,7 +443,7 @@
                     .positive { color: #0f5132; font-weight: 600; }
                 </style>
                 <p>Item: <strong>${item.codigo}</strong> - ${item.descricao} (${item.setor})</p>
-                <p>Total Atual: <strong class="${total < 0 ? 'negative' : 'positive'}">${window.formatDecimal(total)}</strong></p>
+                <p>Total Atual: <strong class="${total < 0 ? 'negative' : 'positive'}">${formatDecimal(total)}</strong></p>
                 <table class="history-table">
                     <thead>
                         <tr>
@@ -454,19 +457,19 @@
                         ${history.length > 0 ? history.reverse().map(entry => `
                             <tr>
                                 <td>${entry.timestamp}</td>
-                                <td class="${entry.quantity < 0 ? 'negative' : 'positive'}">${window.formatDecimal(entry.quantity)}</td>
+                                <td class="${entry.quantity < 0 ? 'negative' : 'positive'}">${formatDecimal(entry.quantity)}</td>
                                 <td>${entry.type}</td>
-                                <td>${window.formatDecimal(entry.newTotal)}</td>
+                                <td>${formatDecimal(entry.newTotal)}</td>
                             </tr>
                         `).join('') : '<tr><td colspan="4" style="text-align: center;">Nenhuma movimentação registrada.</td></tr>'}
                     </tbody>
                 </table>
             `;
-            window.openModal(`Histórico de Movimentação`, historyHtml);
-        };
+            openModal(`Histórico de Movimentação`, historyHtml);
+        }
         
-        window.openDeleteProductModal = (sector) => {
-            const products = window.loadFromLocalStorage('products', {});
+        function openDeleteProductModal(sector) {
+            const products = loadFromLocalStorage('products', {});
             
             const productSectorInput = document.getElementById('product-sector');
             const deleteSectorNameSpan = document.getElementById('delete-sector-name');
@@ -475,7 +478,7 @@
 
             const sectorToFilter = sector || (productSectorInput ? productSectorInput.value : null);
             if (!sectorToFilter) {
-                window.showMessage('error', 'Selecione um setor antes de tentar excluir por setor.', 'cadastro');
+                showMessage('error', 'Selecione um setor antes de tentar excluir por setor.', 'cadastro');
                 return;
             }
             
@@ -501,7 +504,7 @@
             }
 
             if (deleteProductModalOverlay) deleteProductModalOverlay.style.display = 'flex';
-        };
+        }
 
         
         // =========================================================================
@@ -567,15 +570,82 @@
 
                 return bestDelimiter;
             }
+
+            const loadProductForInventory = (code) => {
+                const products = loadFromLocalStorage('products', {}); 
+                const inventory = loadFromLocalStorage('inventory', {});
+
+                const product = products[code];
+                if (product) {
+                    const total = inventory.hasOwnProperty(code) ? inventory[code].total : 0;
+                    if(inventoryGtinInput) inventoryGtinInput.value = product.gtin || '';
+                    if(inventoryDescriptionInput) inventoryDescriptionInput.value = product.descricao;
+                    if(inventoryTotalInput) inventoryTotalInput.value = formatDecimal(total);
+                    if(inventoryQuantityInput) inventoryQuantityInput.focus();
+                } else {
+                    if(inventoryGtinInput) inventoryGtinInput.value = '';
+                    if(inventoryDescriptionInput) inventoryDescriptionInput.value = '';
+                    if(inventoryTotalInput) inventoryTotalInput.value = '0,0';
+                    showMessage('error', `Produto com código **${code}** não encontrado no cadastro. Preencha a descrição.`, 'estoque');
+                }
+            };
+            
+            const processCSV = (csvText, sector) => {
+                let products = loadFromLocalStorage('products', {});
+                
+                const delimiter = detectDelimiter(csvText);
+                const lines = csvText.trim().split('\n');
+                
+                if (lines.length <= 1) {
+                    showMessage('error', 'O arquivo CSV está vazio ou tem apenas o cabeçalho.', 'cadastro');
+                    return;
+                }
+                
+                const headers = lines[0].split(delimiter).map(h => h.trim().toUpperCase());
+                let importedCount = 0;
+                
+                const codeIndex = headers.findIndex(h => h.includes('CÓDIGO') || h.includes('CODE'));
+                const descIndex = headers.findIndex(h => h.includes('DESCRIÇÃO') || h.includes('DESCRICAO') || h.includes('DESCRIPTION'));
+                const gtinIndex = headers.findIndex(h => h.includes('GTIN') || h.includes('EAN') || h.includes('BARRAS'));
+
+                if (codeIndex === -1 || descIndex === -1) {
+                    showMessage('error', `O CSV deve ter as colunas "Código" e "Descrição". Delimitador detectado: "${delimiter}"`, 'cadastro');
+                    return;
+                }
+
+                for (let i = 1; i < lines.length; i++) {
+                    const values = lines[i].split(delimiter).map(v => v.trim().replace(/"/g, '')); 
+                    
+                    const code = values[codeIndex];
+                    const description = values[descIndex];
+                    const gtin = gtinIndex !== -1 ? values[gtinIndex] : '';
+
+                    if (code && description) {
+                        products[code] = {
+                            codigo: code,
+                            gtin: gtin,
+                            descricao: description,
+                            setor: sector 
+                        };
+                        importedCount++;
+                    }
+                }
+
+                saveToLocalStorage('products', products);
+                updateInventoryList();
+                showMessage('success', `${importedCount} produtos importados/atualizados para o setor **${sector}** com sucesso!`, 'cadastro');
+                
+                if(fileInput) fileInput.value = ''; 
+            };
             
             // --- Lógica de Cadastro e Busca (Aba Cadastro) ---
             
-            if (productCodeInput) productCodeInput.addEventListener('input', window.updateSearchButtonState);
-            if (productGtinInput) productGtinInput.addEventListener('input', window.updateSearchButtonState);
-            if (productDescriptionInput) productDescriptionInput.addEventListener('input', window.updateSearchButtonState);
+            if (productCodeInput) productCodeInput.addEventListener('input', updateSearchButtonState);
+            if (productGtinInput) productGtinInput.addEventListener('input', updateSearchButtonState);
+            if (productDescriptionInput) productDescriptionInput.addEventListener('input', updateSearchButtonState);
 
             if (btnSearchProduct) btnSearchProduct.addEventListener('click', () => {
-                const products = window.loadFromLocalStorage('products', {}); 
+                const products = loadFromLocalStorage('products', {}); 
 
                 const code = productCodeInput.value.trim();
                 const description = productDescriptionInput.value.trim();
@@ -590,32 +660,32 @@
                 } else if (description) {
                     foundProducts = Object.values(products).filter(p => p.descricao.toLowerCase().includes(description.toLowerCase()));
                 } else {
-                    window.showMessage('error', 'Por favor, insira o Código, o GTIN ou a Descrição para pesquisar.', 'cadastro');
+                    showMessage('error', 'Por favor, insira o Código, o GTIN ou a Descrição para pesquisar.', 'cadastro');
                     return;
                 }
 
                 if (foundProducts.length === 1) {
-                    window.selectProductItem(foundProducts[0].codigo, foundProducts[0].descricao, foundProducts[0].setor, foundProducts[0].gtin);
-                    window.showMessage('success', 'Produto encontrado e formulário preenchido!', 'cadastro');
+                    selectProductItem(foundProducts[0].codigo, foundProducts[0].descricao, foundProducts[0].setor, foundProducts[0].gtin);
+                    showMessage('success', 'Produto encontrado e formulário preenchido!', 'cadastro');
                 } else if (foundProducts.length > 1) {
                     let resultsHtml = `<p>Dê um **duplo clique** em um item para selecioná-lo.</p> <table class="result-table"> <thead> <tr> <th>Código</th> <th>GTIN</th> <th>Descrição</th> <th>Setor</th> </tr> </thead> <tbody> 
                     ${foundProducts.map(item => ` <tr ondblclick="selectProductItem('${item.codigo}', '${item.descricao.replace(/'/g, "\\'")}', '${item.setor}', '${item.gtin || ''}')"> 
                         <td>${item.codigo}</td> <td>${item.gtin || '-'}</td> <td>${item.descricao}</td> <td>${item.setor}</td> </tr> `).join('')} 
                     </tbody> </table>`;
-                    window.openModal(`Resultados da Busca para "${code || gtin || description}"`, resultsHtml);
+                    openModal(`Resultados da Busca para "${code || gtin || description}"`, resultsHtml);
                 } else {
                     productCodeInput.value = code; 
                     productGtinInput.value = gtin; 
                     if(productSectorInput) productSectorInput.value = '';
                     productDescriptionInput.value = description;
-                    window.showMessage('error', 'Nenhum produto encontrado. Preencha os dados restantes para cadastrá-lo.', 'cadastro');
+                    showMessage('error', 'Nenhum produto encontrado. Preencha os dados restantes para cadastrá-lo.', 'cadastro');
                 }
             });
 
             if (formCadastro) formCadastro.addEventListener('submit', (e) => {
                 e.preventDefault();
                 
-                let products = window.loadFromLocalStorage('products', {});
+                let products = loadFromLocalStorage('products', {});
 
                 const code = productCodeInput.value.trim();
                 const gtin = productGtinInput.value.trim();
@@ -624,49 +694,30 @@
                 const isUpdate = products.hasOwnProperty(code);
 
                 if (code.length === 0 || description.length === 0 || sector.length === 0) {
-                     window.showMessage('error', 'Preencha o Código, a Descrição e o Setor para salvar o produto.', 'cadastro');
+                     showMessage('error', 'Preencha o Código, a Descrição e o Setor para salvar o produto.', 'cadastro');
                      return;
                 }
 
                 if (isUpdate) {
                     products[code] = { codigo: code, gtin: gtin, descricao: description, setor: sector };
-                    window.showMessage('success', `Produto **${code}** atualizado com sucesso!`, 'cadastro');
+                    showMessage('success', `Produto **${code}** atualizado com sucesso!`, 'cadastro');
                 } else {
                     products[code] = { codigo: code, gtin: gtin, descricao: description, setor: sector };
-                    window.showMessage('success', `Produto **${code}** cadastrado com sucesso!`, 'cadastro');
+                    showMessage('success', `Produto **${code}** cadastrado com sucesso!`, 'cadastro');
                 }
 
-                window.saveToLocalStorage('products', products);
-                window.updateInventoryList(); 
+                saveToLocalStorage('products', products);
+                updateInventoryList(); 
                 formCadastro.reset();
-                window.updateSearchButtonState();
+                updateSearchButtonState();
             });
 
             if (btnDeleteProduct) btnDeleteProduct.addEventListener('click', () => {
-                window.openDeleteProductModal(productSectorInput ? productSectorInput.value : null);
+                openDeleteProductModal(productSectorInput ? productSectorInput.value : null);
             });
 
             // --- Lógica de Gerenciamento de Estoque (Aba Estoque) ---
 
-            const loadProductForInventory = (code) => {
-                const products = window.loadFromLocalStorage('products', {}); 
-                const inventory = window.loadFromLocalStorage('inventory', {});
-
-                const product = products[code];
-                if (product) {
-                    const total = inventory.hasOwnProperty(code) ? inventory[code].total : 0;
-                    if(inventoryGtinInput) inventoryGtinInput.value = product.gtin || '';
-                    if(inventoryDescriptionInput) inventoryDescriptionInput.value = product.descricao;
-                    if(inventoryTotalInput) inventoryTotalInput.value = window.formatDecimal(total);
-                    if(inventoryQuantityInput) inventoryQuantityInput.focus();
-                } else {
-                    if(inventoryGtinInput) inventoryGtinInput.value = '';
-                    if(inventoryDescriptionInput) inventoryDescriptionInput.value = '';
-                    if(inventoryTotalInput) inventoryTotalInput.value = '0,0';
-                    window.showMessage('error', `Produto com código **${code}** não encontrado no cadastro. Preencha a descrição.`, 'estoque');
-                }
-            };
-            
             if (inventoryCodeInput) inventoryCodeInput.addEventListener('change', () => {
                 const code = inventoryCodeInput.value.trim();
                 if (code) {
@@ -677,7 +728,7 @@
             if (inventoryGtinInput) inventoryGtinInput.addEventListener('change', () => {
                 const gtin = inventoryGtinInput.value.trim();
                 if (gtin) {
-                    window.performGtinSearch(gtin);
+                    performGtinSearch(gtin);
                 }
             });
             
@@ -696,9 +747,9 @@
             if (formEstoque) formEstoque.addEventListener('submit', (e) => {
                 e.preventDefault();
 
-                let products = window.loadFromLocalStorage('products', {}); 
-                let inventory = window.loadFromLocalStorage('inventory', {});
-                let inventoryHistory = window.loadFromLocalStorage('inventoryHistory', {});
+                let products = loadFromLocalStorage('products', {}); 
+                let inventory = loadFromLocalStorage('inventory', {});
+                let inventoryHistory = loadFromLocalStorage('inventoryHistory', {});
 
                 const code = inventoryCodeInput.value.trim();
                 const gtin = inventoryGtinInput.value.trim();
@@ -707,13 +758,13 @@
                 let product = products[code];
 
                 if (!code || isNaN(quantity) || quantity === 0) {
-                    window.showMessage('error', 'Preencha o Código do Produto e uma Quantidade válida e diferente de zero.', 'estoque');
+                    showMessage('error', 'Preencha o Código do Produto e uma Quantidade válida e diferente de zero.', 'estoque');
                     return;
                 }
 
                 if (!product) {
                     if (!description) {
-                         window.showMessage('error', `Produto com código **${code}** não cadastrado. Preencha a Descrição para cadastro automático.`, 'estoque');
+                         showMessage('error', `Produto com código **${code}** não cadastrado. Preencha a Descrição para cadastro automático.`, 'estoque');
                          return;
                     }
                     product = {
@@ -723,8 +774,8 @@
                         setor: 'Outros' 
                     };
                     products[code] = product;
-                    window.saveToLocalStorage('products', products);
-                    window.showMessage('success', `Produto **${code}** cadastrado automaticamente. Setor: Outros.`, 'estoque');
+                    saveToLocalStorage('products', products);
+                    showMessage('success', `Produto **${code}** cadastrado automaticamente. Setor: Outros.`, 'estoque');
                 }
 
                 const currentTotal = inventory.hasOwnProperty(code) ? inventory[code].total : 0;
@@ -748,20 +799,20 @@
                 }
                 inventoryHistory[code].push(historyEntry);
 
-                window.saveToLocalStorage('inventory', inventory);
-                window.saveToLocalStorage('inventoryHistory', inventoryHistory);
+                saveToLocalStorage('inventory', inventory);
+                saveToLocalStorage('inventoryHistory', inventoryHistory);
                 
-                if(inventoryTotalInput) inventoryTotalInput.value = window.formatDecimal(newTotal);
+                if(inventoryTotalInput) inventoryTotalInput.value = formatDecimal(newTotal);
                 if(inventoryQuantityInput) inventoryQuantityInput.value = '';
                 if(inventoryCodeInput) inventoryCodeInput.value = '';
                 if(inventoryGtinInput) inventoryGtinInput.value = '';
                 if(inventoryDescriptionInput) inventoryDescriptionInput.value = '';
                 
-                window.updateInventoryList();
+                updateInventoryList();
                 
                 if(inventoryCodeInput) inventoryCodeInput.focus();
                 
-                window.showMessage('success', `Estoque de **${code}** atualizado! Nova quantidade: ${window.formatDecimal(newTotal)}.`, 'estoque');
+                showMessage('success', `Estoque de **${code}** atualizado! Nova quantidade: ${formatDecimal(newTotal)}.`, 'estoque');
             });
 
             // --- Handlers de Tabs e Filtros ---
@@ -775,7 +826,7 @@
                     if (activeTabContent) activeTabContent.classList.add('active');
 
                     if (tab === 'estoque' || tab === 'relatorio') {
-                        window.updateInventoryList();
+                        updateInventoryList();
                     }
                 });
             });
@@ -783,11 +834,11 @@
             filterButtons.forEach(button => {
                 button.addEventListener('click', () => {
                     const filter = button.dataset.filter;
-                    if (window.currentFilter !== filter) {
-                        window.currentFilter = filter; // Usa a variável global
+                    if (currentFilter !== filter) {
+                        currentFilter = filter; // Usa a variável global
                         filterButtons.forEach(btn => btn.classList.remove('active'));
                         button.classList.add('active');
-                        window.updateInventoryList();
+                        updateInventoryList();
                     }
                 });
             });
@@ -795,11 +846,11 @@
             // --- Lógica de Relatórios e Exportação ---
             
             if (openZeroStockBtn) openZeroStockBtn.addEventListener('click', () => {
-                const products = window.loadFromLocalStorage('products', {}); 
-                const inventory = window.loadFromLocalStorage('inventory', {});
+                const products = loadFromLocalStorage('products', {}); 
+                const inventory = loadFromLocalStorage('inventory', {});
                 
                 const productsNotInInventory = Object.values(products)
-                    .filter(p => p.setor === window.currentFilter)
+                    .filter(p => p.setor === currentFilter)
                     .filter(p => !inventory.hasOwnProperty(p.codigo) || inventory[p.codigo].total === 0);
 
                 let reportHtml = `
@@ -823,7 +874,7 @@
                         </tbody>
                     </table>
                 `;
-                window.openModal(`Itens do Setor ${window.currentFilter} sem Estoque Informado`, reportHtml);
+                openModal(`Itens do Setor ${currentFilter} sem Estoque Informado`, reportHtml);
             });
             
             if (openProductReportBtn) openProductReportBtn.addEventListener('click', () => {
@@ -838,7 +889,7 @@
                 const rows = reportTableBody ? reportTableBody.querySelectorAll('tr') : [];
 
                 if (rows.length === 0 || (rows.length === 1 && rows[0].innerText.includes('Nenhum dado'))) {
-                    window.showMessage('error', 'Nenhum dado para exportar.', 'relatorio');
+                    showMessage('error', 'Nenhum dado para exportar.', 'relatorio');
                     return;
                 }
 
@@ -859,16 +910,16 @@
                 const encodedUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvContent);
                 const link = document.createElement('a');
                 link.setAttribute('href', encodedUri);
-                link.setAttribute('download', `relatorio_estoque_${window.currentFilter}_${new Date().toISOString().slice(0, 10)}.csv`);
+                link.setAttribute('download', `relatorio_estoque_${currentFilter}_${new Date().toISOString().slice(0, 10)}.csv`);
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                window.showMessage('success', 'Dados exportados para CSV com sucesso!', 'relatorio');
+                showMessage('success', 'Dados exportados para CSV com sucesso!', 'relatorio');
             });
 
             if (exportPdfBtn) exportPdfBtn.addEventListener('click', () => {
                 if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
-                    window.showMessage('error', 'Erro ao exportar PDF. A biblioteca jspdf não foi carregada. Verifique sua conexão com a internet.', 'relatorio');
+                    showMessage('error', 'Erro ao exportar PDF. A biblioteca jspdf não foi carregada. Verifique sua conexão com a internet.', 'relatorio');
                     return;
                 }
                 
@@ -876,7 +927,7 @@
                     const { jsPDF } = window.jspdf;
                     const doc = new jsPDF();
                     
-                    const reportTitle = `Relatório de Estoque - Setor: ${window.currentFilter}`;
+                    const reportTitle = `Relatório de Estoque - Setor: ${currentFilter}`;
                     const now = new Date().toLocaleString('pt-BR');
 
                     doc.setFontSize(18);
@@ -891,7 +942,7 @@
                     const rows = reportTableBody ? reportTableBody.querySelectorAll('tr') : [];
 
                     if (rows.length === 0 || (rows.length === 1 && rows[0].innerText.includes('Nenhum dado'))) {
-                         window.showMessage('error', 'Nenhum dado para exportar.', 'relatorio');
+                         showMessage('error', 'Nenhum dado para exportar.', 'relatorio');
                          return;
                     }
 
@@ -916,12 +967,12 @@
                         margin: { top: 10 }
                     });
 
-                    doc.save(`relatorio_estoque_${window.currentFilter}_${new Date().toISOString().slice(0, 10)}.pdf`);
-                    window.showMessage('success', 'Dados exportados para PDF com sucesso!', 'relatorio');
+                    doc.save(`relatorio_estoque_${currentFilter}_${new Date().toISOString().slice(0, 10)}.pdf`);
+                    showMessage('success', 'Dados exportados para PDF com sucesso!', 'relatorio');
 
                 } catch(e) {
                     console.error(e);
-                    window.showMessage('error', 'Erro ao exportar PDF. Verifique o console do navegador.', 'relatorio');
+                    showMessage('error', 'Erro ao exportar PDF. Verifique o console do navegador.', 'relatorio');
                 }
             });
 
@@ -933,7 +984,7 @@
             
             if (fileInput) fileInput.addEventListener('change', (event) => {
                 const file = event.target.files[0];
-                const sector = window.selectedImportSector;
+                const sector = selectedImportSector;
                 
                 if (file && sector) {
                     const reader = new FileReader();
@@ -941,69 +992,21 @@
                         processCSV(e.target.result, sector);
                     };
                     reader.onerror = () => {
-                        window.showMessage('error', 'Erro ao ler o arquivo.', 'cadastro');
+                        showMessage('error', 'Erro ao ler o arquivo.', 'cadastro');
                     };
                     reader.readAsText(file);
                 }
             });
-
-            const processCSV = (csvText, sector) => {
-                let products = window.loadFromLocalStorage('products', {});
-                
-                const delimiter = detectDelimiter(csvText);
-                const lines = csvText.trim().split('\n');
-                
-                if (lines.length <= 1) {
-                    window.showMessage('error', 'O arquivo CSV está vazio ou tem apenas o cabeçalho.', 'cadastro');
-                    return;
-                }
-                
-                const headers = lines[0].split(delimiter).map(h => h.trim().toUpperCase());
-                let importedCount = 0;
-                
-                const codeIndex = headers.findIndex(h => h.includes('CÓDIGO') || h.includes('CODE'));
-                const descIndex = headers.findIndex(h => h.includes('DESCRIÇÃO') || h.includes('DESCRICAO') || h.includes('DESCRIPTION'));
-                const gtinIndex = headers.findIndex(h => h.includes('GTIN') || h.includes('EAN') || h.includes('BARRAS'));
-
-                if (codeIndex === -1 || descIndex === -1) {
-                    window.showMessage('error', `O CSV deve ter as colunas "Código" e "Descrição". Delimitador detectado: "${delimiter}"`, 'cadastro');
-                    return;
-                }
-
-                for (let i = 1; i < lines.length; i++) {
-                    const values = lines[i].split(delimiter).map(v => v.trim().replace(/"/g, '')); 
-                    
-                    const code = values[codeIndex];
-                    const description = values[descIndex];
-                    const gtin = gtinIndex !== -1 ? values[gtinIndex] : '';
-
-                    if (code && description) {
-                        products[code] = {
-                            codigo: code,
-                            gtin: gtin,
-                            descricao: description,
-                            setor: sector 
-                        };
-                        importedCount++;
-                    }
-                }
-
-                window.saveToLocalStorage('products', products);
-                window.updateInventoryList();
-                window.showMessage('success', `${importedCount} produtos importados/atualizados para o setor **${sector}** com sucesso!`, 'cadastro');
-                
-                if(fileInput) fileInput.value = ''; 
-            };
             
             // --- Lógica de Exclusão (Aba Gerenciar) ---
 
             if (clearAllBtn) clearAllBtn.addEventListener('click', () => {
                 const confirmation = confirm("TEM CERTEZA que deseja apagar **TODOS** os registros de estoque e histórico? Esta ação é irreversível e afetará todos os setores.");
                 if (confirmation) {
-                    window.saveToLocalStorage('inventory', {});
-                    window.saveToLocalStorage('inventoryHistory', {});
-                    window.updateInventoryList();
-                    window.showMessage('success', 'Todos os itens do estoque e histórico foram apagados com sucesso!', 'gerenciar');
+                    saveToLocalStorage('inventory', {});
+                    saveToLocalStorage('inventoryHistory', {});
+                    updateInventoryList();
+                    showMessage('success', 'Todos os itens do estoque e histórico foram apagados com sucesso!', 'gerenciar');
                 }
             });
 
@@ -1012,14 +1015,14 @@
                 const sector = productSectorInput ? productSectorInput.value : null;
 
                 if (descriptionValue === 'APAGAR' && sector) {
-                    let products = window.loadFromLocalStorage('products', {}); 
-                    let inventory = window.loadFromLocalStorage('inventory', {});
-                    let inventoryHistory = window.loadFromLocalStorage('inventoryHistory', {});
+                    let products = loadFromLocalStorage('products', {}); 
+                    let inventory = loadFromLocalStorage('inventory', {});
+                    let inventoryHistory = loadFromLocalStorage('inventoryHistory', {});
 
                     const productsInSector = Object.keys(products).filter(code => products[code].setor === sector);
                     
                     if (productsInSector.length === 0) {
-                        window.showMessage('error', `Não há produtos cadastrados no setor **${sector}** para apagar.`, 'gerenciar');
+                        showMessage('error', `Não há produtos cadastrados no setor **${sector}** para apagar.`, 'gerenciar');
                         if(productDescriptionInput) productDescriptionInput.value = '';
                         return;
                     }
@@ -1035,15 +1038,15 @@
                             deletedCount++;
                         });
 
-                        window.saveToLocalStorage('products', products);
-                        window.saveToLocalStorage('inventory', inventory);
-                        window.saveToLocalStorage('inventoryHistory', inventoryHistory);
-                        window.updateInventoryList();
-                        window.showMessage('success', `${deletedCount} produto(s) do setor **${sector}** foram apagados com sucesso!`, 'gerenciar');
+                        saveToLocalStorage('products', products);
+                        saveToLocalStorage('inventory', inventory);
+                        saveToLocalStorage('inventoryHistory', inventoryHistory);
+                        updateInventoryList();
+                        showMessage('success', `${deletedCount} produto(s) do setor **${sector}** foram apagados com sucesso!`, 'gerenciar');
                     }
                     if(productDescriptionInput) productDescriptionInput.value = ''; 
                 } else {
-                    window.showMessage('error', `Para apagar os produtos cadastrados de um setor, você deve primeiro selecionar o setor na aba 'Cadastro' e, em seguida, digitar **APAGAR** no campo de descrição de produto daquela aba e clicar em 'Apagar todos itens cadastrados'.`, 'gerenciar');
+                    showMessage('error', `Para apagar os produtos cadastrados de um setor, você deve primeiro selecionar o setor na aba 'Cadastro' e, em seguida, digitar **APAGAR** no campo de descrição de produto daquela aba e clicar em 'Apagar todos itens cadastrados'.`, 'gerenciar');
                 }
             });
 
@@ -1055,9 +1058,9 @@
             
             filterButtons.forEach(btn => btn.classList.remove('active'));
             if(acougueFilterBtn) acougueFilterBtn.classList.add('active');
-            window.currentFilter = 'Açougue';
+            currentFilter = 'Açougue';
 
-            window.updateInventoryList();
-            window.updateSearchButtonState();
+            updateInventoryList();
+            updateSearchButtonState();
         });
     </script>
