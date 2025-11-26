@@ -1555,9 +1555,10 @@
 
             // Lógica de Apagar Todos Itens Cadastrados (Gerenciar - Requer confirmação por texto)
             clearProductsBySectorBtn.addEventListener('click', () => {
+                // A verificação deve ser feita no campo 'Descrição do Item' da aba 'Cadastro'
                 const confirmText = productDescriptionInput.value.trim().toUpperCase();
                 
-                if (confirmText === 'APAGAR') {
+                if (confirmText === 'APAGAR TUDO') { // Alterando a confirmação para algo mais explícito
                     const productsToDelete = Object.keys(products);
                     
                     if (productsToDelete.length > 0) {
@@ -1580,7 +1581,7 @@
 
                     productDescriptionInput.value = ''; // Limpa o campo de segurança
                 } else {
-                    showMessage('error', `Para apagar **TODOS** os produtos, digite 'APAGAR' no campo de descrição de produto na aba de Cadastro e clique neste botão.`, 'gerenciar');
+                    showMessage('error', `Para apagar **TODOS** os produtos, digite 'APAGAR TUDO' no campo de descrição de produto na aba de Cadastro e clique neste botão.`, 'gerenciar');
                 }
             });
 
