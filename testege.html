@@ -627,19 +627,26 @@
     </div>
 
     <script>
-        // Variáveis globais para o scanner e estado
+        // =========================================================================
+        // VARIÁVEIS DE ESTADO E UTILIDADE GLOBAIS (MAXIMIZANDO O ALCANCE)
+        // =========================================================================
+        
         let html5QrCode = null;
         let currentInputId = null;
-        const scannerModalOverlay = document.getElementById('scanner-modal-overlay');
+        // Variável de estado para o filtro (usada pela função global updateInventoryList)
+        window.currentFilter = 'Açougue'; 
+        // Variável para armazenar o setor de importação
+        window.selectedImportSector = ''; 
         
+        const scannerModalOverlay = document.getElementById('scanner-modal-overlay');
+
         // --- Funções de Utilidade Globais ---
         
-        const formatDecimal = (num) => {
+        window.formatDecimal = (num) => {
             return parseFloat(num).toFixed(1).replace('.', ',');
         };
-        window.formatDecimal = formatDecimal; // Torna global para uso em on*clicks
 
-        const loadFromLocalStorage = (key, defaultValue) => {
+        window.loadFromLocalStorage = (key, defaultValue) => {
             try {
                 const data = localStorage.getItem(key);
                 return data ? JSON.parse(data) : defaultValue;
@@ -648,18 +655,36 @@
                 return defaultValue;
             }
         };
-        window.loadFromLocalStorage = loadFromLocalStorage; // Torna global
 
-        const saveToLocalStorage = (key, data) => {
+        window.saveToLocalStorage = (key, data) => {
             try {
                 localStorage.setItem(key, JSON.stringify(data));
             } catch (e) {
                 console.error("Erro ao salvar no Local Storage: ", e);
             }
         };
-        window.saveToLocalStorage = saveToLocalStorage; // Torna global
+
+        window.showMessage = (type, content, tabId) => {
+            const messageDiv = document.getElementById(`message-${tabId}`);
+            if (messageDiv) {
+                messageDiv.innerHTML = content;
+                messageDiv.className = `message ${type}`;
+                messageDiv.style.display = 'block';
+                setTimeout(() => {
+                    messageDiv.style.display = 'none';
+                }, 5000);
+            }
+        };
 
         // --- Funções de Modais Globais ---
+        
+        /** Abre qualquer modal de relatório/busca (AGORA TOTALMENTE GLOBAL) */
+        window.openModal = (title, content) => {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-body').innerHTML = content;
+            document.getElementById('report-modal-overlay').style.display = 'flex';
+        };
+        
         window.closeModal = () => {
             document.getElementById('report-modal-overlay').style.display = 'none';
         };
@@ -676,23 +701,132 @@
             document.getElementById('delete-product-modal-overlay').style.display = 'none';
         };
         
-        const showMessage = (type, content, tabId) => {
-            const messageDiv = document.getElementById(`message-${tabId}`);
-            if (messageDiv) {
-                messageDiv.innerHTML = content;
-                messageDiv.className = `message ${type}`;
-                messageDiv.style.display = 'block';
-                setTimeout(() => {
-                    messageDiv.style.display = 'none';
-                }, 5000);
-            }
-        };
-        window.showMessage = showMessage;
-
-        // --- Funções de Scanner e Busca Globalmente Acessíveis (CORREÇÃO DE ESTADO AQUI) ---
+        // --- Funções de Lógica Principal Globais ---
         
         /**
-         * Para o scanner e fecha o modal.
+         * Atualiza a lista de estoque e a tabela de relatórios com base no filtro global.
+         * AGORA É UMA FUNÇÃO GLOBAL E SEMPRE RECARREGA OS DADOS.
+         */
+        window.updateInventoryList = () => {
+            const products = window.loadFromLocalStorage('products', {}); 
+            const inventory = window.loadFromLocalStorage('inventory', {});
+            
+            const inventoryList = document.getElementById('inventory-list');
+            const reportTableBody = document.getElementById('report-table-body');
+            const reportSectorNameSpan = document.getElementById('report-sector-name');
+            
+            if (!inventoryList || !reportTableBody) return; // Segurança para DOMContentLoaded não ter rodado
+            
+            inventoryList.innerHTML = '';
+            reportTableBody.innerHTML = '';
+            reportSectorNameSpan.textContent = window.currentFilter;
+
+            const allProducts = Object.values(products);
+            
+            // Filtra os produtos pelo setor ativo (currentFilter)
+            const filteredProducts = window.currentFilter ? allProducts.filter(p => p.setor === window.currentFilter) : allProducts;
+
+            // Combina dados do produto com o total do estoque
+            const itemsWithStock = filteredProducts.map(product => {
+                const inventoryItem = inventory[product.codigo];
+                const total = inventoryItem ? inventoryItem.total : 0;
+                return { 
+                    codigo: product.codigo, 
+                    descricao: product.descricao, 
+                    setor: product.setor, 
+                    total: total, 
+                    gtin: product.gtin 
+                };
+            }).filter(item => item.total !== 0); 
+
+            itemsWithStock.sort((a, b) => a.descricao.localeCompare(b.descricao));
+
+            // Preenche a lista de Estoque
+            if (itemsWithStock.length === 0) {
+                inventoryList.innerHTML = '<li style="color: #64748b; text-align: center;">Nenhum item em estoque no setor.</li>';
+            } else {
+                itemsWithStock.forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = 'list-item';
+                    const displayGtin = item.gtin ? ` (${item.gtin})` : '';
+                    
+                    li.innerHTML = ` 
+                        <span>${item.codigo}: ${item.descricao}${displayGtin}</span> 
+                        <span style="color: ${item.total < 0 ? '#dc3545' : '#007bff'}; font-weight: 700;">Total: ${window.formatDecimal(item.total)}</span> 
+                    `;
+                    
+                    li.addEventListener('click', () => {
+                        document.querySelectorAll('.list-item').forEach(el => el.classList.remove('selected'));
+                        li.classList.add('selected');
+                        document.getElementById('inventory-code').value = item.codigo;
+                        document.getElementById('inventory-gtin').value = item.gtin || '';
+                        document.getElementById('inventory-description').value = item.descricao;
+                        document.getElementById('inventory-total').value = window.formatDecimal(item.total);
+                        document.getElementById('inventory-quantity').value = '';
+                        document.getElementById('inventory-quantity').focus();
+                    });
+                    
+                    li.addEventListener('dblclick', () => {
+                        window.showHistoryPopup(item.codigo);
+                    });
+                    
+                    inventoryList.appendChild(li);
+                });
+            }
+            
+            // Preenche a Tabela de Relatórios
+            const allItemsForReport = filteredProducts.map(product => {
+                const inventoryItem = inventory[product.codigo];
+                const total = inventoryItem ? inventoryItem.total : 0;
+                return { 
+                    codigo: product.codigo, 
+                    descricao: product.descricao, 
+                    setor: product.setor, 
+                    total: total, 
+                    gtin: product.gtin 
+                };
+            }).sort((a, b) => a.descricao.localeCompare(b.descricao));
+
+            if (allItemsForReport.length === 0) {
+                reportTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #64748b;">Nenhum dado de produto disponível para o setor.</td></tr>';
+            } else {
+                allItemsForReport.forEach(item => {
+                    const trReport = document.createElement('tr');
+                    trReport.innerHTML = `
+                        <td>${item.codigo}</td> 
+                        <td>${item.descricao}</td> 
+                        <td>${item.setor}</td> 
+                        <td style="color: ${item.total < 0 ? '#dc3545' : 'inherit'}; font-weight: 600;">${window.formatDecimal(item.total)}</td> 
+                    `;
+                    reportTableBody.appendChild(trReport);
+                });
+            }
+        };
+
+        /** * Lógica para desabilitar/habilitar o botão de pesquisa (Cadastro)
+         * AGORA É UMA FUNÇÃO GLOBAL.
+         */
+        window.updateSearchButtonState = () => {
+            const productCodeInput = document.getElementById('product-code');
+            const productDescriptionInput = document.getElementById('product-description');
+            const productGtinInput = document.getElementById('product-gtin');
+            const btnSearchProduct = document.getElementById('btn-search-product');
+
+            if (!productCodeInput || !btnSearchProduct) return; // Segurança para DOMContentLoaded não ter rodado
+            
+            const code = productCodeInput.value.trim();
+            const description = productDescriptionInput.value.trim();
+            const gtin = productGtinInput.value.trim();
+
+            const isOnlyCodeFilled = code.length > 0 && description.length === 0 && gtin.length === 0;
+            const isOnlyDescriptionFilled = code.length === 0 && description.length > 0 && gtin.length === 0;
+            const isOnlyGtinFilled = code.length === 0 && description.length === 0 && gtin.length > 0;
+            
+            btnSearchProduct.disabled = !(isOnlyCodeFilled || isOnlyDescriptionFilled || isOnlyGtinFilled);
+        };
+
+        /**
+         * Lógica de Busca e Scanner (Permanece Global e Autosuficiente)
          */
         window.stopAndCloseScanner = () => {
             if (html5QrCode && html5QrCode.isScanning) {
@@ -710,19 +844,12 @@
             }
         };
         
-        /**
-         * Função que tenta carregar as informações do item no formulário de estoque
-         * baseado no GTIN. (AGORA CARREGA O ESTADO DE FORMA INDEPENDENTE)
-         * @param {string} gtin - O código GTIN lido.
-         */
         window.performGtinSearch = (gtin) => {
             if (!gtin) return;
             
-            // CARREGA O ESTADO NECESSÁRIO DIRETAMENTE DO LOCAL STORAGE
-            const allProducts = loadFromLocalStorage('products', {});
-            const currentInventory = loadFromLocalStorage('inventory', {});
+            const allProducts = window.loadFromLocalStorage('products', {});
+            const currentInventory = window.loadFromLocalStorage('inventory', {});
 
-            // Carrega referências dos inputs (precisam ser buscadas no DOM)
             const inventoryCodeInput = document.getElementById('inventory-code');
             const inventoryGtinInput = document.getElementById('inventory-gtin'); 
             const inventoryDescriptionInput = document.getElementById('inventory-description');
@@ -735,37 +862,26 @@
                 const product = foundProducts[0];
                 const code = product.codigo;
                 
-                // Função auxiliar local para carregar o produto
-                const loadProductDetails = (code) => {
-                    const total = currentInventory.hasOwnProperty(code) ? currentInventory[code].total : 0;
-                    inventoryCodeInput.value = code;
-                    inventoryGtinInput.value = product.gtin || '';
-                    inventoryDescriptionInput.value = product.descricao;
-                    inventoryTotalInput.value = formatDecimal(total);
-                    inventoryQuantityInput.focus();
-                };
+                const total = currentInventory.hasOwnProperty(code) ? currentInventory[code].total : 0;
+                inventoryCodeInput.value = code;
+                inventoryGtinInput.value = product.gtin || '';
+                inventoryDescriptionInput.value = product.descricao;
+                inventoryTotalInput.value = window.formatDecimal(total);
+                if (inventoryQuantityInput) inventoryQuantityInput.focus();
                 
-                loadProductDetails(code);
                 window.showMessage('success', `Produto encontrado pelo GTIN: **${product.descricao}**`, 'estoque');
             } else {
-                inventoryCodeInput.value = '';
-                inventoryGtinInput.value = gtin; // Mantém o GTIN lido no campo
-                inventoryDescriptionInput.value = '';
-                inventoryTotalInput.value = '0,0';
+                if (inventoryCodeInput) inventoryCodeInput.value = '';
+                if (inventoryGtinInput) inventoryGtinInput.value = gtin; 
+                if (inventoryDescriptionInput) inventoryDescriptionInput.value = '';
+                if (inventoryTotalInput) inventoryTotalInput.value = '0,0';
                 window.showMessage('error', `Nenhum produto encontrado com GTIN **${gtin}** no cadastro.`, 'estoque');
             }
         };
 
-
-        /**
-         * Inicializa o scanner de código de barras.
-         * DEFINIDA COMO FUNÇÃO GLOBAL (window)
-         */
         window.startBarcodeScan = (inputId, tabId) => {
-            // VERIFICAÇÃO DE SEGURANÇA:
             if (typeof Html5Qrcode === 'undefined') {
                  alert("Erro: A biblioteca do leitor de código de barras (html5-qrcode) não foi carregada. Verifique sua conexão com a internet ou o console do navegador.");
-                 console.error("Html5Qrcode class is undefined. Check internet connection or if the script is blocked.");
                  window.showMessage('error', 'Falha ao iniciar o leitor. Verifique o console do navegador e a conexão.', tabId);
                  return; 
             }
@@ -788,36 +904,31 @@
 
             const onScanSuccess = (decodedText, decodedResult) => {
                 document.getElementById(currentInputId).value = decodedText;
-                scannerResultDiv.textContent = `Sucesso: ${decodedText}`;
+                if (scannerResultDiv) scannerResultDiv.textContent = `Sucesso: ${decodedText}`;
                 
-                // Se for o GTIN de estoque, aciona a busca automática (CHAMA A FUNÇÃO GLOBAL)
                 if (currentInputId === 'inventory-gtin') {
                     window.performGtinSearch(decodedText); 
                 }
 
-                // Fecha o modal após o sucesso
                 setTimeout(() => {
                     window.stopAndCloseScanner();
                 }, 500); 
             };
 
             const onScanError = (errorMessage) => {
-                // Não precisa de console.log, apenas para evitar quebra.
+                // Silencioso por padrão
             };
 
-            // Abre o modal
-            document.getElementById('scanner-title').textContent = "Leitor de Código de Barras";
-            scannerResultDiv.textContent = 'Aguardando leitura...';
-            scannerModalOverlay.style.display = 'flex';
+            if (scannerModalOverlay) scannerModalOverlay.style.display = 'flex';
+            if (scannerResultDiv) scannerResultDiv.textContent = 'Aguardando leitura...';
 
-            // Inicia o scanner
             html5QrCode.start(
                 { facingMode: "environment" }, 
                 config,
                 onScanSuccess,
                 onScanError
             ).catch(err => {
-                scannerResultDiv.textContent = `Erro: ${err.message}. Verifique a permissão da câmera e se o site está em HTTPS.`;
+                if (scannerResultDiv) scannerResultDiv.textContent = `Erro: ${err.message}. Verifique a permissão da câmera e se o site está em HTTPS.`;
                 setTimeout(() => {
                     window.stopAndCloseScanner();
                     window.showMessage('error', 'Falha ao iniciar o leitor de código de barras. Verifique HTTPS e permissões.', tabId);
@@ -825,10 +936,8 @@
             });
         };
         
-        // --- Funções de Seleção para Modais (Chamadas via onclick/ondblclick) ---
+        // --- Funções de Seleção para Modais (Permanece Global) ---
         
-        // Estas funções são seguras, pois só manipulam DOM ou chamam funções que agora carregam estado.
-
         window.selectZeroStockItem = (code, description, gtin) => {
             window.closeModal();
             document.getElementById('inventory-code').value = code;
@@ -844,7 +953,7 @@
             document.getElementById('inventory-code').value = code;
             document.getElementById('inventory-gtin').value = gtin || '';
             document.getElementById('inventory-description').value = description;
-            document.getElementById('inventory-total').value = formatDecimal(total);
+            document.getElementById('inventory-total').value = window.formatDecimal(total);
             document.getElementById('inventory-quantity').value = '';
             document.getElementById('inventory-quantity').focus();
         };
@@ -856,19 +965,14 @@
             document.getElementById('product-description').value = description;
             document.getElementById('product-sector').value = sector;
             
-            // Dispara a atualização do estado do botão (a ser definida no DOMContentLoaded)
-            const updateSearchButtonState = document.querySelector('.container').updateSearchButtonState;
-            if (updateSearchButtonState) updateSearchButtonState();
+            window.updateSearchButtonState();
         };
         
         window.generateProductReport = (sector) => {
             window.closeSectorModal();
             
-            // CARREGA O ESTADO NECESSÁRIO
-            const products = loadFromLocalStorage('products', {});
-
+            const products = window.loadFromLocalStorage('products', {});
             const filteredProducts = Object.values(products).filter(p => p.setor === sector);
-            const openModal = document.querySelector('.container').openModal; // Acesso à função local
 
             let reportHtml = `
                 <style> 
@@ -896,24 +1000,23 @@
                     </tbody>
                 </table>
             `;
-            if (openModal) openModal(`Relatório de Produtos Cadastrados - ${sector}`, reportHtml);
+            window.openModal(`Relatório de Produtos Cadastrados - ${sector}`, reportHtml);
         };
         
         window.openFileInput = (sector) => {
             window.closeCsvSectorModal();
             const fileInput = document.getElementById('file-input');
-            document.querySelector('.container').selectedImportSector = sector; // Salva o setor no escopo do DOMContentLoaded
-            fileInput.click();
+            window.selectedImportSector = sector; // Define o setor de importação
+            if (fileInput) fileInput.click();
         };
 
         window.deleteSelectedProducts = () => {
-            // CARREGA O ESTADO NECESSÁRIO (E TEMPORARIAMENTE USA AS VARIÁVEIS LOCAIS PARA MANIPULAR)
-            let products = loadFromLocalStorage('products', {});
-            let inventory = loadFromLocalStorage('inventory', {});
-            let inventoryHistory = loadFromLocalStorage('inventoryHistory', {});
+            let products = window.loadFromLocalStorage('products', {});
+            let inventory = window.loadFromLocalStorage('inventory', {});
+            let inventoryHistory = window.loadFromLocalStorage('inventoryHistory', {});
 
             const formDeleteProducts = document.getElementById('form-delete-products');
-            const checkboxes = formDeleteProducts.querySelectorAll('input[name="productToDelete"]:checked');
+            const checkboxes = formDeleteProducts ? formDeleteProducts.querySelectorAll('input[name="productToDelete"]:checked') : [];
             const codesToDelete = Array.from(checkboxes).map(cb => cb.value);
             
             if (codesToDelete.length === 0) {
@@ -925,36 +1028,33 @@
             codesToDelete.forEach(code => {
                 if (products.hasOwnProperty(code)) {
                     delete products[code];
-                    delete inventory[code]; // Remove do estoque
-                    delete inventoryHistory[code]; // Remove do histórico
+                    delete inventory[code]; 
+                    delete inventoryHistory[code]; 
                     deletedCount++;
                 }
             });
 
-            saveToLocalStorage('products', products);
-            saveToLocalStorage('inventory', inventory);
-            saveToLocalStorage('inventoryHistory', inventoryHistory);
+            window.saveToLocalStorage('products', products);
+            window.saveToLocalStorage('inventory', inventory);
+            window.saveToLocalStorage('inventoryHistory', inventoryHistory);
             
             window.closeDeleteModal();
             
-            // Re-busca a função local
-            const updateInventoryList = document.querySelector('.container').updateInventoryList; 
-            if (updateInventoryList) updateInventoryList();
+            window.updateInventoryList();
             
             window.showMessage('success', `${deletedCount} produto(s) excluído(s) permanentemente!`, 'cadastro');
-            document.getElementById('form-cadastro').reset(); 
+            const formCadastro = document.getElementById('form-cadastro');
+            if (formCadastro) formCadastro.reset(); 
         };
         
         window.showHistoryPopup = (itemCode) => {
-            // CARREGA O ESTADO NECESSÁRIO
-            const products = loadFromLocalStorage('products', {});
-            const inventory = loadFromLocalStorage('inventory', {});
-            const inventoryHistory = loadFromLocalStorage('inventoryHistory', {});
+            const products = window.loadFromLocalStorage('products', {});
+            const inventory = window.loadFromLocalStorage('inventory', {});
+            const inventoryHistory = window.loadFromLocalStorage('inventoryHistory', {});
 
             const history = inventoryHistory[itemCode] || [];
             const item = products[itemCode];
             const total = inventory[itemCode] ? inventory[itemCode].total : 0;
-            const openModal = document.querySelector('.container').openModal; // Acesso à função local
             
             if (!item) {
                  window.showMessage('error', 'Produto não encontrado para exibir histórico.', 'estoque');
@@ -970,7 +1070,7 @@
                     .positive { color: #0f5132; font-weight: 600; }
                 </style>
                 <p>Item: <strong>${item.codigo}</strong> - ${item.descricao} (${item.setor})</p>
-                <p>Total Atual: <strong class="${total < 0 ? 'negative' : 'positive'}">${formatDecimal(total)}</strong></p>
+                <p>Total Atual: <strong class="${total < 0 ? 'negative' : 'positive'}">${window.formatDecimal(total)}</strong></p>
                 <table class="history-table">
                     <thead>
                         <tr>
@@ -984,27 +1084,26 @@
                         ${history.length > 0 ? history.reverse().map(entry => `
                             <tr>
                                 <td>${entry.timestamp}</td>
-                                <td class="${entry.quantity < 0 ? 'negative' : 'positive'}">${formatDecimal(entry.quantity)}</td>
+                                <td class="${entry.quantity < 0 ? 'negative' : 'positive'}">${window.formatDecimal(entry.quantity)}</td>
                                 <td>${entry.type}</td>
-                                <td>${formatDecimal(entry.newTotal)}</td>
+                                <td>${window.formatDecimal(entry.newTotal)}</td>
                             </tr>
                         `).join('') : '<tr><td colspan="4" style="text-align: center;">Nenhuma movimentação registrada.</td></tr>'}
                     </tbody>
                 </table>
             `;
-            if (openModal) openModal(`Histórico de Movimentação`, historyHtml);
+            window.openModal(`Histórico de Movimentação`, historyHtml);
         };
         
         window.openDeleteProductModal = (sector) => {
-            // CARREGA O ESTADO NECESSÁRIO
-            const products = loadFromLocalStorage('products', {});
+            const products = window.loadFromLocalStorage('products', {});
             
             const productSectorInput = document.getElementById('product-sector');
             const deleteSectorNameSpan = document.getElementById('delete-sector-name');
             const formDeleteProducts = document.getElementById('form-delete-products');
             const deleteProductModalOverlay = document.getElementById('delete-product-modal-overlay');
 
-            const sectorToFilter = sector || productSectorInput.value;
+            const sectorToFilter = sector || (productSectorInput ? productSectorInput.value : null);
             if (!sectorToFilter) {
                 window.showMessage('error', 'Selecione um setor antes de tentar excluir por setor.', 'cadastro');
                 return;
@@ -1012,14 +1111,14 @@
             
             const productsInSector = Object.values(products).filter(p => p.setor === sectorToFilter).sort((a,b) => a.descricao.localeCompare(b.descricao));
             
-            deleteSectorNameSpan.textContent = sectorToFilter;
-            formDeleteProducts.innerHTML = '';
+            if (deleteSectorNameSpan) deleteSectorNameSpan.textContent = sectorToFilter;
+            if (formDeleteProducts) formDeleteProducts.innerHTML = '';
             
             if (productsInSector.length === 0) {
-                formDeleteProducts.innerHTML = `<p style="text-align: center; color: #64748b;">Nenhum produto cadastrado no setor **${sectorToFilter}**.</p>`;
-                deleteProductModalOverlay.querySelector('.btn-danger').disabled = true; 
+                if (formDeleteProducts) formDeleteProducts.innerHTML = `<p style="text-align: center; color: #64748b;">Nenhum produto cadastrado no setor **${sectorToFilter}**.</p>`;
+                if (deleteProductModalOverlay) deleteProductModalOverlay.querySelector('.btn-danger').disabled = true; 
             } else {
-                deleteProductModalOverlay.querySelector('.btn-danger').disabled = false; 
+                if (deleteProductModalOverlay) deleteProductModalOverlay.querySelector('.btn-danger').disabled = false; 
                 productsInSector.forEach(product => {
                     const div = document.createElement('div');
                     div.className = 'delete-list-item';
@@ -1027,26 +1126,19 @@
                         <input type="checkbox" id="delete-${product.codigo}" name="productToDelete" value="${product.codigo}">
                         <label for="delete-${product.codigo}">${product.codigo} - ${product.descricao}</label>
                     `;
-                    formDeleteProducts.appendChild(div);
+                    if (formDeleteProducts) formDeleteProducts.appendChild(div);
                 });
             }
 
-            deleteProductModalOverlay.style.display = 'flex';
+            if (deleteProductModalOverlay) deleteProductModalOverlay.style.display = 'flex';
         };
 
         
         // =========================================================================
-        // Todo o restante do código da aplicação (DOM manipulation, Event Listeners)
+        // DOM CONTENT LOADED - SOMENTE ELEMENTOS E EVENT LISTENERS
         // =========================================================================
         document.addEventListener('DOMContentLoaded', () => {
-            // Variáveis de Estado Locais (serão carregadas no início)
-            let products = loadFromLocalStorage('products', {}); 
-            let inventory = loadFromLocalStorage('inventory', {});
-            let inventoryHistory = loadFromLocalStorage('inventoryHistory', {});
-            let currentFilter = 'Açougue';
-            let selectedImportSector = ''; 
             
-            // Seletores
             const tabButtons = document.querySelectorAll('.tab-button');
             const tabContents = document.querySelectorAll('.tab-content');
             const filterButtons = document.querySelectorAll('.toggle-button');
@@ -1066,8 +1158,6 @@
             const clearAllBtn = document.getElementById('clear-all');
             const openProductReportBtn = document.getElementById('open-product-report');
             
-            const reportModalOverlay = document.getElementById('report-modal-overlay');
-            const reportSectorNameSpan = document.getElementById('report-sector-name');
             const sectorSelectModalOverlay = document.getElementById('sector-select-modal-overlay');
             const csvSectorModalOverlay = document.getElementById('csv-sector-modal-overlay');
 
@@ -1083,15 +1173,6 @@
 
             // --- Funções Auxiliares Locais ---
             
-            const openModal = (title, content) => {
-                document.getElementById('modal-title').textContent = title;
-                document.getElementById('modal-body').innerHTML = content;
-                reportModalOverlay.style.display = 'flex';
-            };
-            // Adiciona a função ao elemento container para ser acessível pelas funções globais
-            document.querySelector('.container').openModal = openModal; 
-
-            // Função de detecção de delimitador CSV
             function detectDelimiter(csvText) {
                 const commonDelimiters = [',', ';', '\t', '|'];
                 const lines = csvText.trim().split('\n');
@@ -1110,7 +1191,6 @@
                     }
                 });
                 
-                // Prioriza ponto-e-vírgula se for o padrão Excel PT-BR comum
                 if (firstLine.includes(';') && (maxCount === 0 || bestDelimiter !== ',')) {
                     return ';';
                 }
@@ -1118,128 +1198,14 @@
                 return bestDelimiter;
             }
             
-            /**
-             * Atualiza a lista de estoque e a tabela de relatórios com base no filtro atual.
-             */
-            const updateInventoryList = () => {
-                // Re-carrega o estado, pois pode ter sido alterado pelas funções globais
-                products = loadFromLocalStorage('products', {}); 
-                inventory = loadFromLocalStorage('inventory', {});
-                
-                const inventoryList = document.getElementById('inventory-list');
-                const reportTableBody = document.getElementById('report-table-body');
-                
-                inventoryList.innerHTML = '';
-                reportTableBody.innerHTML = '';
-                reportSectorNameSpan.textContent = currentFilter;
-
-                const allProducts = Object.values(products);
-                
-                // Filtra os produtos pelo setor ativo (currentFilter)
-                const filteredProducts = currentFilter ? allProducts.filter(p => p.setor === currentFilter) : allProducts;
-
-                // Combina dados do produto com o total do estoque
-                const itemsWithStock = filteredProducts.map(product => {
-                    const inventoryItem = inventory[product.codigo];
-                    const total = inventoryItem ? inventoryItem.total : 0;
-                    return { 
-                        codigo: product.codigo, 
-                        descricao: product.descricao, 
-                        setor: product.setor, 
-                        total: total, 
-                        gtin: product.gtin 
-                    };
-                }).filter(item => item.total !== 0); // Mostra apenas itens com total diferente de zero na lista principal
-
-                // Ordena por descrição
-                itemsWithStock.sort((a, b) => a.descricao.localeCompare(b.descricao));
-
-                // Preenche a lista de Estoque
-                if (itemsWithStock.length === 0) {
-                    inventoryList.innerHTML = '<li style="color: #64748b; text-align: center;">Nenhum item em estoque no setor.</li>';
-                } else {
-                    itemsWithStock.forEach(item => {
-                        const li = document.createElement('li');
-                        li.className = 'list-item';
-                        const displayGtin = item.gtin ? ` (${item.gtin})` : '';
-                        
-                        li.innerHTML = ` 
-                            <span>${item.codigo}: ${item.descricao}${displayGtin}</span> 
-                            <span style="color: ${item.total < 0 ? '#dc3545' : '#007bff'}; font-weight: 700;">Total: ${formatDecimal(item.total)}</span> 
-                        `;
-                        
-                        // Clique simples: preenche o formulário
-                        li.addEventListener('click', () => {
-                            document.querySelectorAll('.list-item').forEach(el => el.classList.remove('selected'));
-                            li.classList.add('selected');
-                            inventoryCodeInput.value = item.codigo;
-                            inventoryGtinInput.value = item.gtin || '';
-                            inventoryDescriptionInput.value = item.descricao;
-                            inventoryTotalInput.value = formatDecimal(item.total);
-                            inventoryQuantityInput.value = '';
-                            inventoryQuantityInput.focus();
-                        });
-                        
-                        // Clique duplo: abre histórico (Chama a função global)
-                        li.addEventListener('dblclick', () => {
-                            window.showHistoryPopup(item.codigo);
-                        });
-                        
-                        inventoryList.appendChild(li);
-                    });
-                }
-                
-                // Preenche a Tabela de Relatórios
-                // (Mostra todos os itens do setor cadastrados, mesmo com estoque 0 ou negativo)
-                const allItemsForReport = filteredProducts.map(product => {
-                    const inventoryItem = inventory[product.codigo];
-                    const total = inventoryItem ? inventoryItem.total : 0;
-                    return { 
-                        codigo: product.codigo, 
-                        descricao: product.descricao, 
-                        setor: product.setor, 
-                        total: total, 
-                        gtin: product.gtin 
-                    };
-                }).sort((a, b) => a.descricao.localeCompare(b.descricao));
-
-                if (allItemsForReport.length === 0) {
-                    reportTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #64748b;">Nenhum dado de produto disponível para o setor.</td></tr>';
-                } else {
-                    allItemsForReport.forEach(item => {
-                        const trReport = document.createElement('tr');
-                        trReport.innerHTML = `
-                            <td>${item.codigo}</td> 
-                            <td>${item.descricao}</td> 
-                            <td>${item.setor}</td> 
-                            <td style="color: ${item.total < 0 ? '#dc3545' : 'inherit'}; font-weight: 600;">${formatDecimal(item.total)}</td> 
-                        `;
-                        reportTableBody.appendChild(trReport);
-                    });
-                }
-            };
-            document.querySelector('.container').updateInventoryList = updateInventoryList;
-            
             // --- Lógica de Cadastro e Busca (Aba Cadastro) ---
+            
+            if (productCodeInput) productCodeInput.addEventListener('input', window.updateSearchButtonState);
+            if (productGtinInput) productGtinInput.addEventListener('input', window.updateSearchButtonState);
+            if (productDescriptionInput) productDescriptionInput.addEventListener('input', window.updateSearchButtonState);
 
-            // Lógica para desabilitar/habilitar o botão de pesquisa (Cadastro)
-            const updateSearchButtonState = () => {
-                const code = productCodeInput.value.trim();
-                const description = productDescriptionInput.value.trim();
-                const gtin = productGtinInput.value.trim();
-
-                // Habilita se APENAS um dos campos principais estiver preenchido
-                const isOnlyCodeFilled = code.length > 0 && description.length === 0 && gtin.length === 0;
-                const isOnlyDescriptionFilled = code.length === 0 && description.length > 0 && gtin.length === 0;
-                const isOnlyGtinFilled = code.length === 0 && description.length === 0 && gtin.length > 0;
-                
-                btnSearchProduct.disabled = !(isOnlyCodeFilled || isOnlyDescriptionFilled || isOnlyGtinFilled);
-            };
-            document.querySelector('.container').updateSearchButtonState = updateSearchButtonState; // Torna acessível externamente
-
-            btnSearchProduct.addEventListener('click', () => {
-                // Re-carrega o estado para a busca
-                products = loadFromLocalStorage('products', {}); 
+            if (btnSearchProduct) btnSearchProduct.addEventListener('click', () => {
+                const products = window.loadFromLocalStorage('products', {}); 
 
                 const code = productCodeInput.value.trim();
                 const description = productDescriptionInput.value.trim();
@@ -1254,168 +1220,147 @@
                 } else if (description) {
                     foundProducts = Object.values(products).filter(p => p.descricao.toLowerCase().includes(description.toLowerCase()));
                 } else {
-                    showMessage('error', 'Por favor, insira o Código, o GTIN ou a Descrição para pesquisar.', 'cadastro');
+                    window.showMessage('error', 'Por favor, insira o Código, o GTIN ou a Descrição para pesquisar.', 'cadastro');
                     return;
                 }
 
                 if (foundProducts.length === 1) {
-                    // Item único encontrado, preenche o formulário
                     window.selectProductItem(foundProducts[0].codigo, foundProducts[0].descricao, foundProducts[0].setor, foundProducts[0].gtin);
-                    showMessage('success', 'Produto encontrado e formulário preenchido!', 'cadastro');
+                    window.showMessage('success', 'Produto encontrado e formulário preenchido!', 'cadastro');
                 } else if (foundProducts.length > 1) {
-                    // Múltiplos itens encontrados, abre modal para seleção
                     let resultsHtml = `<p>Dê um **duplo clique** em um item para selecioná-lo.</p> <table class="result-table"> <thead> <tr> <th>Código</th> <th>GTIN</th> <th>Descrição</th> <th>Setor</th> </tr> </thead> <tbody> 
                     ${foundProducts.map(item => ` <tr ondblclick="selectProductItem('${item.codigo}', '${item.descricao.replace(/'/g, "\\'")}', '${item.setor}', '${item.gtin || ''}')"> 
                         <td>${item.codigo}</td> <td>${item.gtin || '-'}</td> <td>${item.descricao}</td> <td>${item.setor}</td> </tr> `).join('')} 
                     </tbody> </table>`;
-                    openModal(`Resultados da Busca para "${code || gtin || description}"`, resultsHtml);
+                    window.openModal(`Resultados da Busca para "${code || gtin || description}"`, resultsHtml);
                 } else {
-                    // Nada encontrado
-                    productCodeInput.value = code; // Mantém o código digitado
-                    productGtinInput.value = gtin; // Mantém o GTIN digitado
-                    productSectorInput.value = '';
+                    productCodeInput.value = code; 
+                    productGtinInput.value = gtin; 
+                    if(productSectorInput) productSectorInput.value = '';
                     productDescriptionInput.value = description;
-                    showMessage('error', 'Nenhum produto encontrado. Preencha os dados restantes para cadastrá-lo.', 'cadastro');
+                    window.showMessage('error', 'Nenhum produto encontrado. Preencha os dados restantes para cadastrá-lo.', 'cadastro');
                 }
             });
 
-            productCodeInput.addEventListener('input', updateSearchButtonState);
-            productGtinInput.addEventListener('input', updateSearchButtonState);
-            productDescriptionInput.addEventListener('input', updateSearchButtonState);
-
-            formCadastro.addEventListener('submit', (e) => {
+            if (formCadastro) formCadastro.addEventListener('submit', (e) => {
                 e.preventDefault();
+                
+                let products = window.loadFromLocalStorage('products', {});
 
                 const code = productCodeInput.value.trim();
                 const gtin = productGtinInput.value.trim();
                 const description = productDescriptionInput.value.trim();
-                const sector = productSectorInput.value;
+                const sector = productSectorInput ? productSectorInput.value : '';
                 const isUpdate = products.hasOwnProperty(code);
 
                 if (isUpdate) {
-                    // Atualiza produto existente
                     products[code] = { codigo: code, gtin: gtin, descricao: description, setor: sector };
-                    showMessage('success', `Produto **${code}** atualizado com sucesso!`, 'cadastro');
+                    window.showMessage('success', `Produto **${code}** atualizado com sucesso!`, 'cadastro');
                 } else {
-                    // Novo cadastro
                     products[code] = { codigo: code, gtin: gtin, descricao: description, setor: sector };
-                    showMessage('success', `Produto **${code}** cadastrado com sucesso!`, 'cadastro');
+                    window.showMessage('success', `Produto **${code}** cadastrado com sucesso!`, 'cadastro');
                 }
 
-                saveToLocalStorage('products', products);
-                updateInventoryList(); // Atualiza as listas na aba de Estoque/Relatório
+                window.saveToLocalStorage('products', products);
+                window.updateInventoryList(); 
                 formCadastro.reset();
-                updateSearchButtonState();
+                window.updateSearchButtonState();
             });
 
-            btnDeleteProduct.addEventListener('click', () => {
-                window.openDeleteProductModal(productSectorInput.value);
+            if (btnDeleteProduct) btnDeleteProduct.addEventListener('click', () => {
+                window.openDeleteProductModal(productSectorInput ? productSectorInput.value : null);
             });
 
             // --- Lógica de Gerenciamento de Estoque (Aba Estoque) ---
 
-            /**
-             * Função que tenta carregar as informações do item no formulário de estoque
-             * baseado no código.
-             */
             const loadProductForInventory = (code) => {
-                // Re-carrega o estado para a busca
-                products = loadFromLocalStorage('products', {}); 
-                inventory = loadFromLocalStorage('inventory', {});
+                const products = window.loadFromLocalStorage('products', {}); 
+                const inventory = window.loadFromLocalStorage('inventory', {});
 
                 const product = products[code];
                 if (product) {
                     const total = inventory.hasOwnProperty(code) ? inventory[code].total : 0;
-                    inventoryGtinInput.value = product.gtin || '';
-                    inventoryDescriptionInput.value = product.descricao;
-                    inventoryTotalInput.value = formatDecimal(total);
-                    inventoryQuantityInput.focus();
+                    if(inventoryGtinInput) inventoryGtinInput.value = product.gtin || '';
+                    if(inventoryDescriptionInput) inventoryDescriptionInput.value = product.descricao;
+                    if(inventoryTotalInput) inventoryTotalInput.value = window.formatDecimal(total);
+                    if(inventoryQuantityInput) inventoryQuantityInput.focus();
                 } else {
-                    inventoryGtinInput.value = '';
-                    inventoryDescriptionInput.value = '';
-                    inventoryTotalInput.value = '0,0';
-                    showMessage('error', `Produto com código **${code}** não encontrado no cadastro. Preencha a descrição.`, 'estoque');
+                    if(inventoryGtinInput) inventoryGtinInput.value = '';
+                    if(inventoryDescriptionInput) inventoryDescriptionInput.value = '';
+                    if(inventoryTotalInput) inventoryTotalInput.value = '0,0';
+                    window.showMessage('error', `Produto com código **${code}** não encontrado no cadastro. Preencha a descrição.`, 'estoque');
                 }
             };
             
-            // Listener para busca automática por código
-            inventoryCodeInput.addEventListener('change', () => {
+            if (inventoryCodeInput) inventoryCodeInput.addEventListener('change', () => {
                 const code = inventoryCodeInput.value.trim();
                 if (code) {
                     loadProductForInventory(code);
                 }
             });
 
-            // Listener para busca automática por GTIN (chama a função global)
-            inventoryGtinInput.addEventListener('change', () => {
+            if (inventoryGtinInput) inventoryGtinInput.addEventListener('change', () => {
                 const gtin = inventoryGtinInput.value.trim();
                 if (gtin) {
                     window.performGtinSearch(gtin);
                 }
             });
             
-            // Lógica para limitar a quantidade de casas decimais a 1
-            inventoryQuantityInput.addEventListener('input', (event) => {
+            if (inventoryQuantityInput) inventoryQuantityInput.addEventListener('input', (event) => {
                 let value = event.target.value;
                 const parts = value.split('.');
                 if (parts.length > 1) {
                     parts[1] = parts[1].slice(0, 1);
                     event.target.value = parts.join('.');
                 }
-                // Permite a vírgula para pt-BR e converte para ponto para o campo number
                 if (event.target.value.includes(',')) {
                     event.target.value = event.target.value.replace(',', '.');
                 }
             });
 
-            formEstoque.addEventListener('submit', (e) => {
+            if (formEstoque) formEstoque.addEventListener('submit', (e) => {
                 e.preventDefault();
 
-                // Re-carrega o estado antes da submissão
-                products = loadFromLocalStorage('products', {}); 
-                inventory = loadFromLocalStorage('inventory', {});
-                inventoryHistory = loadFromLocalStorage('inventoryHistory', {});
+                let products = window.loadFromLocalStorage('products', {}); 
+                let inventory = window.loadFromLocalStorage('inventory', {});
+                let inventoryHistory = window.loadFromLocalStorage('inventoryHistory', {});
 
                 const code = inventoryCodeInput.value.trim();
                 const gtin = inventoryGtinInput.value.trim();
                 const description = inventoryDescriptionInput.value.trim();
-                // Usa replace(',', '.') para garantir que parseFloat entenda números com vírgula (se o browser aceitar)
                 const quantity = parseFloat(inventoryQuantityInput.value.replace(',', '.')); 
-                const product = products[code];
+                let product = products[code];
 
                 if (!code || isNaN(quantity) || quantity === 0) {
-                    showMessage('error', 'Preencha o Código do Produto e uma Quantidade válida e diferente de zero.', 'estoque');
+                    window.showMessage('error', 'Preencha o Código do Produto e uma Quantidade válida e diferente de zero.', 'estoque');
                     return;
                 }
 
                 if (!product) {
-                    // Se o produto não existe, cadastra ele automaticamente como setor 'Outros'
                     if (!description) {
-                         showMessage('error', `Produto com código **${code}** não cadastrado. Preencha a Descrição para cadastro automático.`, 'estoque');
+                         window.showMessage('error', `Produto com código **${code}** não cadastrado. Preencha a Descrição para cadastro automático.`, 'estoque');
                          return;
                     }
-                    products[code] = {
+                    product = {
                         codigo: code,
                         gtin: gtin,
                         descricao: description,
-                        setor: 'Outros' // Define um setor padrão
+                        setor: 'Outros' 
                     };
-                    saveToLocalStorage('products', products);
-                    showMessage('success', `Produto **${code}** cadastrado automaticamente. Setor: Outros.`, 'estoque');
+                    products[code] = product;
+                    window.saveToLocalStorage('products', products);
+                    window.showMessage('success', `Produto **${code}** cadastrado automaticamente. Setor: Outros.`, 'estoque');
                 }
 
-                // Obtém o total atual ou 0 se não existir
                 const currentTotal = inventory.hasOwnProperty(code) ? inventory[code].total : 0;
                 let newTotal = currentTotal + quantity;
-                newTotal = parseFloat(newTotal.toFixed(1)); // Limita a 1 casa decimal
+                newTotal = parseFloat(newTotal.toFixed(1)); 
 
-                // Atualiza o estoque
                 inventory[code] = {
                     total: newTotal,
                     lastUpdate: new Date().toLocaleString('pt-BR')
                 };
 
-                // Registra no histórico
                 const historyEntry = {
                     timestamp: new Date().toLocaleString('pt-BR'),
                     quantity: quantity,
@@ -1428,19 +1373,20 @@
                 }
                 inventoryHistory[code].push(historyEntry);
 
-                saveToLocalStorage('inventory', inventory);
-                saveToLocalStorage('inventoryHistory', inventoryHistory);
+                window.saveToLocalStorage('inventory', inventory);
+                window.saveToLocalStorage('inventoryHistory', inventoryHistory);
                 
-                // Atualiza a interface
-                inventoryTotalInput.value = formatDecimal(newTotal);
-                inventoryQuantityInput.value = '';
-                inventoryCodeInput.value = '';
-                inventoryGtinInput.value = '';
-                inventoryDescriptionInput.value = '';
-                updateInventoryList();
-                inventoryCodeInput.focus();
+                if(inventoryTotalInput) inventoryTotalInput.value = window.formatDecimal(newTotal);
+                if(inventoryQuantityInput) inventoryQuantityInput.value = '';
+                if(inventoryCodeInput) inventoryCodeInput.value = '';
+                if(inventoryGtinInput) inventoryGtinInput.value = '';
+                if(inventoryDescriptionInput) inventoryDescriptionInput.value = '';
                 
-                showMessage('success', `Estoque de **${code}** atualizado! Nova quantidade: ${formatDecimal(newTotal)}.`, 'estoque');
+                window.updateInventoryList();
+                
+                if(inventoryCodeInput) inventoryCodeInput.focus();
+                
+                window.showMessage('success', `Estoque de **${code}** atualizado! Nova quantidade: ${window.formatDecimal(newTotal)}.`, 'estoque');
             });
 
             // --- Handlers de Tabs e Filtros ---
@@ -1452,9 +1398,8 @@
                     button.classList.add('active');
                     document.querySelector(`.tab-content[data-tab="${tab}"]`).classList.add('active');
 
-                    // Se for a aba de estoque, atualiza a lista com o filtro atual
                     if (tab === 'estoque' || tab === 'relatorio') {
-                        updateInventoryList();
+                        window.updateInventoryList();
                     }
                 });
             });
@@ -1462,25 +1407,23 @@
             filterButtons.forEach(button => {
                 button.addEventListener('click', () => {
                     const filter = button.dataset.filter;
-                    if (currentFilter !== filter) {
-                        currentFilter = filter;
+                    if (window.currentFilter !== filter) {
+                        window.currentFilter = filter; // Usa a variável global
                         filterButtons.forEach(btn => btn.classList.remove('active'));
                         button.classList.add('active');
-                        updateInventoryList();
+                        window.updateInventoryList();
                     }
                 });
             });
 
             // --- Lógica de Relatórios e Exportação ---
             
-            // Abre o modal de itens não informados (Zero Stock)
-            openZeroStockBtn.addEventListener('click', () => {
-                // Re-carrega o estado para o relatório
-                products = loadFromLocalStorage('products', {}); 
-                inventory = loadFromLocalStorage('inventory', {});
+            if (openZeroStockBtn) openZeroStockBtn.addEventListener('click', () => {
+                const products = window.loadFromLocalStorage('products', {}); 
+                const inventory = window.loadFromLocalStorage('inventory', {});
                 
                 const productsNotInInventory = Object.values(products)
-                    .filter(p => p.setor === currentFilter)
+                    .filter(p => p.setor === window.currentFilter)
                     .filter(p => !inventory.hasOwnProperty(p.codigo) || inventory[p.codigo].total === 0);
 
                 let reportHtml = `
@@ -1504,24 +1447,22 @@
                         </tbody>
                     </table>
                 `;
-                openModal(`Itens do Setor ${currentFilter} sem Estoque Informado`, reportHtml);
+                window.openModal(`Itens do Setor ${window.currentFilter} sem Estoque Informado`, reportHtml);
             });
             
-            // Relatório de Produtos Cadastrados (Abre a seleção de setor)
-            openProductReportBtn.addEventListener('click', () => {
-                sectorSelectModalOverlay.style.display = 'flex';
+            if (openProductReportBtn) openProductReportBtn.addEventListener('click', () => {
+                if(sectorSelectModalOverlay) sectorSelectModalOverlay.style.display = 'flex';
             });
             
-            // Exportar para CSV
-            exportCsvBtn.addEventListener('click', () => {
+            if (exportCsvBtn) exportCsvBtn.addEventListener('click', () => {
                 const data = [];
-                // Coloca o cabeçalho
                 data.push(['Código', 'Descrição', 'Setor', 'Total'].join(';'));
                 
-                const rows = document.getElementById('report-table-body').querySelectorAll('tr');
+                const reportTableBody = document.getElementById('report-table-body');
+                const rows = reportTableBody ? reportTableBody.querySelectorAll('tr') : [];
 
                 if (rows.length === 0 || (rows.length === 1 && rows[0].innerText.includes('Nenhum dado'))) {
-                    showMessage('error', 'Nenhum dado para exportar.', 'relatorio');
+                    window.showMessage('error', 'Nenhum dado para exportar.', 'relatorio');
                     return;
                 }
 
@@ -1529,10 +1470,10 @@
                     const cells = row.querySelectorAll('td');
                     if (cells.length > 0) {
                         const rowData = [
-                            cells[0].innerText.trim(), // Código
-                            `"${cells[1].innerText.trim()}"`, // Descrição (entre aspas para aceitar vírgulas)
-                            cells[2].innerText.trim(), // Setor
-                            cells[3].innerText.trim().replace(',', '.') // Total (usar ponto como separador decimal para CSV)
+                            cells[0].innerText.trim(),
+                            `"${cells[1].innerText.trim()}"`, 
+                            cells[2].innerText.trim(), 
+                            cells[3].innerText.trim().replace(',', '.') 
                         ];
                         data.push(rowData.join(';'));
                     }
@@ -1542,36 +1483,39 @@
                 const encodedUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvContent);
                 const link = document.createElement('a');
                 link.setAttribute('href', encodedUri);
-                link.setAttribute('download', `relatorio_estoque_${currentFilter}_${new Date().toISOString().slice(0, 10)}.csv`);
+                link.setAttribute('download', `relatorio_estoque_${window.currentFilter}_${new Date().toISOString().slice(0, 10)}.csv`);
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                showMessage('success', 'Dados exportados para CSV com sucesso!', 'relatorio');
+                window.showMessage('success', 'Dados exportados para CSV com sucesso!', 'relatorio');
             });
 
-            // Exportar para PDF
-            exportPdfBtn.addEventListener('click', () => {
+            if (exportPdfBtn) exportPdfBtn.addEventListener('click', () => {
+                if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
+                    window.showMessage('error', 'Erro ao exportar PDF. A biblioteca jspdf não foi carregada. Verifique sua conexão com a internet.', 'relatorio');
+                    return;
+                }
+                
                 try {
                     const { jsPDF } = window.jspdf;
                     const doc = new jsPDF();
                     
-                    const reportTitle = `Relatório de Estoque - Setor: ${currentFilter}`;
+                    const reportTitle = `Relatório de Estoque - Setor: ${window.currentFilter}`;
                     const now = new Date().toLocaleString('pt-BR');
 
-                    // Adicionar Título e Data
                     doc.setFontSize(18);
                     doc.text(reportTitle, 14, 20);
                     doc.setFontSize(10);
                     doc.text(`Gerado em: ${now}`, 14, 25);
                     
-                    // Preparar dados da tabela
                     const head = [['Código', 'Descrição', 'Setor', 'Total']];
                     const body = [];
                     
-                    const rows = document.getElementById('report-table-body').querySelectorAll('tr');
+                    const reportTableBody = document.getElementById('report-table-body');
+                    const rows = reportTableBody ? reportTableBody.querySelectorAll('tr') : [];
 
                     if (rows.length === 0 || (rows.length === 1 && rows[0].innerText.includes('Nenhum dado'))) {
-                         showMessage('error', 'Nenhum dado para exportar.', 'relatorio');
+                         window.showMessage('error', 'Nenhum dado para exportar.', 'relatorio');
                          return;
                     }
 
@@ -1587,7 +1531,6 @@
                         }
                     });
 
-                    // Gerar a tabela com jspdf-autotable
                     doc.autoTable({
                         startY: 30,
                         head: head,
@@ -1597,27 +1540,24 @@
                         margin: { top: 10 }
                     });
 
-                    doc.save(`relatorio_estoque_${currentFilter}_${new Date().toISOString().slice(0, 10)}.pdf`);
-                    showMessage('success', 'Dados exportados para PDF com sucesso!', 'relatorio');
+                    doc.save(`relatorio_estoque_${window.currentFilter}_${new Date().toISOString().slice(0, 10)}.pdf`);
+                    window.showMessage('success', 'Dados exportados para PDF com sucesso!', 'relatorio');
 
                 } catch(e) {
                     console.error(e);
-                    showMessage('error', 'Erro ao exportar PDF. Verifique se as bibliotecas foram carregadas corretamente.', 'relatorio');
+                    window.showMessage('error', 'Erro ao exportar PDF. Verifique o console do navegador.', 'relatorio');
                 }
             });
 
             // --- Lógica de Importação de CSV ---
 
-            importCsvBtn.addEventListener('click', () => {
-                csvSectorModalOverlay.style.display = 'flex';
+            if (importCsvBtn) importCsvBtn.addEventListener('click', () => {
+                if(csvSectorModalOverlay) csvSectorModalOverlay.style.display = 'flex';
             });
             
-            // Variável local para armazenar o setor
-            document.querySelector('.container').selectedImportSector = selectedImportSector;
-
-            fileInput.addEventListener('change', (event) => {
+            if (fileInput) fileInput.addEventListener('change', (event) => {
                 const file = event.target.files[0];
-                const sector = document.querySelector('.container').selectedImportSector;
+                const sector = window.selectedImportSector;
                 
                 if (file && sector) {
                     const reader = new FileReader();
@@ -1625,42 +1565,37 @@
                         processCSV(e.target.result, sector);
                     };
                     reader.onerror = () => {
-                        showMessage('error', 'Erro ao ler o arquivo.', 'cadastro');
+                        window.showMessage('error', 'Erro ao ler o arquivo.', 'cadastro');
                     };
                     reader.readAsText(file);
                 }
             });
 
-            /**
-             * Processa o conteúdo do CSV e atualiza o cadastro de produtos.
-             */
             const processCSV = (csvText, sector) => {
-                // Re-carrega o estado antes de importar
-                products = loadFromLocalStorage('products', {});
+                let products = window.loadFromLocalStorage('products', {});
                 
                 const delimiter = detectDelimiter(csvText);
                 const lines = csvText.trim().split('\n');
                 
                 if (lines.length <= 1) {
-                    showMessage('error', 'O arquivo CSV está vazio ou tem apenas o cabeçalho.', 'cadastro');
+                    window.showMessage('error', 'O arquivo CSV está vazio ou tem apenas o cabeçalho.', 'cadastro');
                     return;
                 }
                 
                 const headers = lines[0].split(delimiter).map(h => h.trim().toUpperCase());
                 let importedCount = 0;
                 
-                // Mapeamento de colunas (assume a ordem ou tenta encontrar pelo nome)
                 const codeIndex = headers.findIndex(h => h.includes('CÓDIGO') || h.includes('CODE'));
                 const descIndex = headers.findIndex(h => h.includes('DESCRIÇÃO') || h.includes('DESCRICAO') || h.includes('DESCRIPTION'));
                 const gtinIndex = headers.findIndex(h => h.includes('GTIN') || h.includes('EAN') || h.includes('BARRAS'));
 
                 if (codeIndex === -1 || descIndex === -1) {
-                    showMessage('error', `O CSV deve ter as colunas "Código" e "Descrição". Delimitador detectado: "${delimiter}"`, 'cadastro');
+                    window.showMessage('error', `O CSV deve ter as colunas "Código" e "Descrição". Delimitador detectado: "${delimiter}"`, 'cadastro');
                     return;
                 }
 
                 for (let i = 1; i < lines.length; i++) {
-                    const values = lines[i].split(delimiter).map(v => v.trim().replace(/"/g, '')); // Remove aspas
+                    const values = lines[i].split(delimiter).map(v => v.trim().replace(/"/g, '')); 
                     
                     const code = values[codeIndex];
                     const description = values[descIndex];
@@ -1671,51 +1606,45 @@
                             codigo: code,
                             gtin: gtin,
                             descricao: description,
-                            setor: sector // Usa o setor selecionado no modal
+                            setor: sector 
                         };
                         importedCount++;
                     }
                 }
 
-                saveToLocalStorage('products', products);
-                updateInventoryList();
-                showMessage('success', `${importedCount} produtos importados/atualizados para o setor **${sector}** com sucesso!`, 'cadastro');
+                window.saveToLocalStorage('products', products);
+                window.updateInventoryList();
+                window.showMessage('success', `${importedCount} produtos importados/atualizados para o setor **${sector}** com sucesso!`, 'cadastro');
                 
-                // Limpa o input file para permitir a mesma seleção novamente
-                fileInput.value = ''; 
+                if(fileInput) fileInput.value = ''; 
             };
             
             // --- Lógica de Exclusão (Aba Gerenciar) ---
 
-            // Apagar TODOS os itens do estoque (manter produtos cadastrados)
-            clearAllBtn.addEventListener('click', () => {
+            if (clearAllBtn) clearAllBtn.addEventListener('click', () => {
                 const confirmation = confirm("TEM CERTEZA que deseja apagar **TODOS** os registros de estoque e histórico? Esta ação é irreversível e afetará todos os setores.");
                 if (confirmation) {
-                    inventory = {};
-                    inventoryHistory = {};
-                    saveToLocalStorage('inventory', inventory);
-                    saveToLocalStorage('inventoryHistory', inventoryHistory);
-                    updateInventoryList();
-                    showMessage('success', 'Todos os itens do estoque e histórico foram apagados com sucesso!', 'gerenciar');
+                    window.saveToLocalStorage('inventory', {});
+                    window.saveToLocalStorage('inventoryHistory', {});
+                    window.updateInventoryList();
+                    window.showMessage('success', 'Todos os itens do estoque e histórico foram apagados com sucesso!', 'gerenciar');
                 }
             });
 
-            // Apagar TODOS os itens cadastrados DE UM SETOR (com segurança)
-            clearProductsBySectorBtn.addEventListener('click', () => {
-                const descriptionValue = productDescriptionInput.value.trim().toUpperCase();
-                const sector = productSectorInput.value;
+            if (clearProductsBySectorBtn) clearProductsBySectorBtn.addEventListener('click', () => {
+                const descriptionValue = productDescriptionInput ? productDescriptionInput.value.trim().toUpperCase() : '';
+                const sector = productSectorInput ? productSectorInput.value : null;
 
                 if (descriptionValue === 'APAGAR' && sector) {
-                    // Re-carrega o estado para a exclusão
-                    products = loadFromLocalStorage('products', {}); 
-                    inventory = loadFromLocalStorage('inventory', {});
-                    inventoryHistory = loadFromLocalStorage('inventoryHistory', {});
+                    let products = window.loadFromLocalStorage('products', {}); 
+                    let inventory = window.loadFromLocalStorage('inventory', {});
+                    let inventoryHistory = window.loadFromLocalStorage('inventoryHistory', {});
 
                     const productsInSector = Object.keys(products).filter(code => products[code].setor === sector);
                     
                     if (productsInSector.length === 0) {
-                        showMessage('error', `Não há produtos cadastrados no setor **${sector}** para apagar.`, 'gerenciar');
-                        productDescriptionInput.value = '';
+                        window.showMessage('error', `Não há produtos cadastrados no setor **${sector}** para apagar.`, 'gerenciar');
+                        if(productDescriptionInput) productDescriptionInput.value = '';
                         return;
                     }
                     
@@ -1730,32 +1659,29 @@
                             deletedCount++;
                         });
 
-                        saveToLocalStorage('products', products);
-                        saveToLocalStorage('inventory', inventory);
-                        saveToLocalStorage('inventoryHistory', inventoryHistory);
-                        updateInventoryList();
-                        showMessage('success', `${deletedCount} produto(s) do setor **${sector}** foram apagados com sucesso!`, 'gerenciar');
+                        window.saveToLocalStorage('products', products);
+                        window.saveToLocalStorage('inventory', inventory);
+                        window.saveToLocalStorage('inventoryHistory', inventoryHistory);
+                        window.updateInventoryList();
+                        window.showMessage('success', `${deletedCount} produto(s) do setor **${sector}** foram apagados com sucesso!`, 'gerenciar');
                     }
-                    productDescriptionInput.value = ''; // Limpa o campo de segurança
+                    if(productDescriptionInput) productDescriptionInput.value = ''; 
                 } else {
-                    showMessage('error', `Para apagar os produtos cadastrados de um setor, você deve primeiro selecionar o setor na aba 'Cadastro' e, em seguida, digitar **APAGAR** no campo de descrição de produto daquela aba e clicar em 'Apagar todos itens cadastrados'.`, 'gerenciar');
+                    window.showMessage('error', `Para apagar os produtos cadastrados de um setor, você deve primeiro selecionar o setor na aba 'Cadastro' e, em seguida, digitar **APAGAR** no campo de descrição de produto daquela aba e clicar em 'Apagar todos itens cadastrados'.`, 'gerenciar');
                 }
             });
 
             // --- Inicialização da página ---
-            // 1. Ativa a aba inicial (Estoque)
-            document.querySelector('.tab-content[data-tab="estoque"]').classList.add('active');
+            if(document.querySelector('.tab-content[data-tab="estoque"]')) {
+                document.querySelector('.tab-content[data-tab="estoque"]').classList.add('active');
+            }
             
-            // 2. Ativa o filtro inicial (Açougue) e atualiza a lista
             filterButtons.forEach(btn => btn.classList.remove('active'));
-            acougueFilterBtn.classList.add('active');
-            currentFilter = 'Açougue';
+            if(acougueFilterBtn) acougueFilterBtn.classList.add('active');
+            window.currentFilter = 'Açougue';
 
-            // 3. Carrega os dados na lista
-            updateInventoryList();
-
-            // 4. Inicializa o estado do botão de pesquisa
-            updateSearchButtonState();
+            window.updateInventoryList();
+            window.updateSearchButtonState();
         });
     </script>
 </body>
