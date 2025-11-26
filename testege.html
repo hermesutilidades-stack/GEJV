@@ -614,8 +614,9 @@
 
         /**
          * Para o scanner e fecha o modal.
+         * DEFINIDA COMO FUNÇÃO TRADICIONAL PARA GARANTIR ESCOPO GLOBAL E FUNCIONAMENTO DO ONCLICK.
          */
-        window.stopAndCloseScanner = () => {
+        function stopAndCloseScanner() {
             if (html5QrCode && html5QrCode.isScanning) {
                 html5QrCode.stop().then(() => {
                     scannerModalOverlay.style.display = 'none';
@@ -633,10 +634,11 @@
 
         /**
          * Inicializa o scanner de código de barras.
+         * DEFINIDA COMO FUNÇÃO TRADICIONAL PARA GARANTIR ESCOPO GLOBAL E FUNCIONAMENTO DO ONCLICK.
          * @param {string} inputId - O ID do campo de input (ex: 'product-gtin', 'inventory-gtin').
          * @param {string} tabId - O ID da aba para exibir mensagens de erro (ex: 'cadastro', 'estoque').
          */
-        window.startBarcodeScan = (inputId, tabId) => {
+        function startBarcodeScan(inputId, tabId) {
             // VERIFICAÇÃO DE SEGURANÇA: Se a biblioteca não carregou, avisa o usuário.
             if (typeof Html5Qrcode === 'undefined') {
                  alert("Erro: A biblioteca do leitor de código de barras (html5-qrcode) não foi carregada. Verifique sua conexão com a internet ou o console do navegador.");
@@ -667,6 +669,7 @@
                 
                 // Se for o GTIN de estoque, aciona a busca automática
                 if (currentInputId === 'inventory-gtin') {
+                    // Chamada para a função que será definida em DOMContentLoaded
                     performGtinSearch(decodedText); 
                 }
 
@@ -700,6 +703,9 @@
             });
         };
         
+        // =========================================================================
+        // Todo o restante do código da aplicação fica aqui, garantindo acesso aos elementos do DOM.
+        // =========================================================================
         document.addEventListener('DOMContentLoaded', () => {
             // --- Variáveis e Funções de Armazenamento ---
             const saveToLocalStorage = (key, data) => {
@@ -810,13 +816,7 @@
                 return bestDelimiter;
             }
 
-            // Funções dos Modais
-            const openModal = (title, content) => {
-                modalTitle.textContent = title;
-                modalBody.innerHTML = content;
-                reportModalOverlay.style.display = 'flex';
-            };
-
+            // Funções dos Modais (Tornadas globais via window para uso no HTML)
             window.closeModal = () => {
                 reportModalOverlay.style.display = 'none';
             };
@@ -831,6 +831,12 @@
 
             window.closeDeleteModal = () => {
                 deleteProductModalOverlay.style.display = 'none';
+            };
+
+            const openModal = (title, content) => {
+                modalTitle.textContent = title;
+                modalBody.innerHTML = content;
+                reportModalOverlay.style.display = 'flex';
             };
 
             // Funções para preenchimento de formulários (chamadas de dentro dos modais)
@@ -874,7 +880,7 @@
                 // Habilita se APENAS um dos campos principais estiver preenchido
                 const isOnlyCodeFilled = code.length > 0 && description.length === 0 && gtin.length === 0;
                 const isOnlyDescriptionFilled = code.length === 0 && description.length > 0 && gtin.length === 0;
-                const isOnlyGtinFilled = code.length === 0 && description.length === 0 && gtin.length > 0;
+                const isOnlyGtinFilled = code.length === 0 && description.length > 0 && gtin.length > 0;
                 
                 btnSearchProduct.disabled = !(isOnlyCodeFilled || isOnlyDescriptionFilled || isOnlyGtinFilled);
             };
@@ -996,6 +1002,8 @@
                     showMessage('error', `Nenhum produto encontrado com GTIN **${gtin}**.`, 'estoque');
                 }
             };
+            window.performGtinSearch = performGtinSearch; // Torna global para ser chamada pelo scanner
+            
 
             // Listeners para busca automática
             inventoryCodeInput.addEventListener('change', () => {
