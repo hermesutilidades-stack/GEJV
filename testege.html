@@ -618,6 +618,7 @@
          */
         window.startBarcodeScan = (inputId, tabId) => {
             // Verifica se a biblioteca Html5Qrcode está disponível ANTES de prosseguir
+            // CORREÇÃO APLICADA AQUI: Html15Qrcode -> Html5Qrcode
             if (typeof Html5Qrcode === 'undefined') {
                 const scannerModalOverlay = document.getElementById('scanner-modal-overlay');
                 const scannerResultDiv = document.getElementById('scanner-result');
@@ -647,6 +648,7 @@
             }
             
             // Cria a instância do scanner 
+            // CORREÇÃO APLICADA AQUI: Html15Qrcode -> Html5Qrcode
             html5QrCode = new Html5Qrcode(readerContainerId);
 
             const config = {
@@ -950,10 +952,6 @@
             productCodeInput.addEventListener('input', updateSearchButtonState);
             productGtinInput.addEventListener('input', updateSearchButtonState);
             productDescriptionInput.addEventListener('input', updateSearchButtonState);
-
-            // Funções para abrir e fechar os modais (redundante, mas mantém compatibilidade)
-            // A maior parte do código de modal está no escopo global para chamadas inline (onclick)
-            // ...
 
             // Funções de utilidade
             const showMessage = (type, content, tabId) => {
