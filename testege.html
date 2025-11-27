@@ -951,6 +951,10 @@
             productGtinInput.addEventListener('input', updateSearchButtonState);
             productDescriptionInput.addEventListener('input', updateSearchButtonState);
 
+            // Funções para abrir e fechar os modais (redundante, mas mantém compatibilidade)
+            // A maior parte do código de modal está no escopo global para chamadas inline (onclick)
+            // ...
+
             // Funções de utilidade
             const showMessage = (type, content, tabId) => {
                 const messageDiv = document.getElementById(`message-${tabId}`);
@@ -1001,7 +1005,7 @@
                 });
             });
 
-            // CORREÇÃO FINAL: Adiciona listeners de clique aos botões de código de barras
+            // Adiciona listeners de clique aos botões de código de barras
             barcodeButtons.forEach(button => {
                 button.addEventListener('click', () => {
                     const inputId = button.dataset.targetInput;
