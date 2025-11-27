@@ -621,10 +621,10 @@
             if (typeof Html5Qrcode === 'undefined') {
                 const scannerModalOverlay = document.getElementById('scanner-modal-overlay');
                 const scannerResultDiv = document.getElementById('scanner-result');
-                if(scannerResultDiv) scannerResultDiv.textContent = 'Erro: Biblioteca do scanner ainda não carregada. Tente novamente em 1 segundo.';
+                if(scannerResultDiv) scannerResultDiv.textContent = 'Erro Crítico: Biblioteca do scanner ainda não carregada (Html5Qrcode is not defined). Verifique o Console e a aba Rede (Network).';
                 if(scannerModalOverlay) scannerModalOverlay.style.display = 'flex';
                 
-                console.error("Erro Crítico: Html5Qrcode is not defined.");
+                console.error("Erro Crítico: Html5Qrcode is not defined. O script não foi carregado.");
                 // Fechar após 4 segundos para o usuário ver a mensagem
                 setTimeout(window.stopAndCloseScanner, 4000); 
                 return;
@@ -998,7 +998,7 @@
                 });
             });
 
-            // CORREÇÃO: Adiciona listeners de clique aos botões de código de barras
+            // CORREÇÃO FINAL: Adiciona listeners de clique aos botões de código de barras
             barcodeButtons.forEach(button => {
                 button.addEventListener('click', () => {
                     const inputId = button.dataset.targetInput;
