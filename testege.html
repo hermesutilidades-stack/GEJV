@@ -621,7 +621,7 @@
             if (typeof Html5Qrcode === 'undefined') {
                 const scannerModalOverlay = document.getElementById('scanner-modal-overlay');
                 const scannerResultDiv = document.getElementById('scanner-result');
-                if(scannerResultDiv) scannerResultDiv.textContent = 'Erro Crítico: Biblioteca do scanner ainda não carregada (Html5Qrcode is not defined). Verifique o Console e a aba Rede (Network).';
+                if(scannerResultDiv) scannerResultDiv.textContent = 'Erro: Biblioteca do scanner ainda não carregada. Tente novamente em um segundo ou verifique se o arquivo html5-qrcode.min.js está na mesma pasta.';
                 if(scannerModalOverlay) scannerModalOverlay.style.display = 'flex';
                 
                 console.error("Erro Crítico: Html5Qrcode is not defined. O script não foi carregado.");
@@ -686,6 +686,7 @@
                 onScanSuccess,
                 onScanError
             ).catch(err => {
+                // Esta é a mensagem de erro que só pode ser resolvida com HTTPS ou APK
                 scannerResultDiv.textContent = `Erro: ${err.message}. Verifique a permissão da câmera e se o site está em HTTPS.`;
                 
                 setTimeout(() => {
@@ -1602,7 +1603,7 @@
         });
     </script>
     
-    <script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
+    <script src="./html5-qrcode.min.js"></script> 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 </body>
