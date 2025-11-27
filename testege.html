@@ -623,7 +623,7 @@
                 const scannerResultDiv = document.getElementById('scanner-result');
                 
                 // MENSAGEM DE ERRO CRÍTICA: A biblioteca não carregou.
-                if(scannerResultDiv) scannerResultDiv.textContent = 'Erro: Biblioteca do scanner ainda não carregada. Tente novamente em um segundo ou verifique se o arquivo html5-qrcode.min.js está na mesma pasta.';
+                if(scannerResultDiv) scannerResultDiv.textContent = 'Erro: Biblioteca do scanner ainda não carregada. Verifique no Console do Navegador (F12) se o arquivo html5-qrcode.min.js foi carregado com sucesso.';
                 if(scannerModalOverlay) scannerModalOverlay.style.display = 'flex';
                 
                 console.error("Erro Crítico: Html5Qrcode is not defined. O script não foi carregado.");
@@ -1605,7 +1605,7 @@
         });
     </script>
     
-    <script src="/html5-qrcode.min.js"></script> 
+    <script src="html5-qrcode.min.js"></script> 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 </body>
