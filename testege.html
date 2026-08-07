@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciador de Estoque e Produtos</title>
+    <!-- Carregamento confiável da biblioteca do scanner via CDN -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -14,289 +16,186 @@
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            min-height: 10vh;
+            min-height: 100vh;
         }
+
         .container {
             width: 100%;
             max-width: 900px;
-            background-color: #fff;
+            background-color: #ffffff;
             border-radius: 12px;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
             padding: 24px;
         }
-        .header {
+
+        .tabs {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            border-bottom: 2px solid #e2e8f0;
             margin-bottom: 24px;
+            overflow-x: auto;
         }
-        .header h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #1e293b;
-            margin: 0;
-        }
-        .header p {
-            font-size: 0.875rem;
-            color: #64748b;
-            margin-top: 4px;
-        }
-        .tab-buttons {
-            display: flex;
-            border-bottom: 1px solid #e2e8f0;
-            margin-bottom: 24px;
-        }
+
         .tab-button {
-            padding: 12px 16px;
-            background-color: transparent;
-            border: none;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: 500;
-            color: #64748b;
-            transition: color 0.2s, border-color 0.2s;
-            position: relative;
-            outline: none;
-        }
-        .tab-button.active {
-            color: #007bff;
+            padding: 12px 20px;
+            font-size: 16px;
             font-weight: 600;
+            color: #64748b;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
         }
-        .tab-button.active::after {
-            content: '';
-            position: absolute;
-            left: 0;
-            bottom: -1px;
-            width: 100%;
-            height: 2px;
-            background-color: #007bff;
+
+        .tab-button:hover {
+            color: #0f172a;
         }
+
+        .tab-button.active {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
+        }
+
         .tab-content {
             display: none;
-            animation: fadeIn 0.5s ease-in-out;
         }
+
         .tab-content.active {
             display: block;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        .card {
-            background-color: #f8fafc;
-            padding: 24px;
-            border-radius: 10px;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
-        }
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+
+        h2 {
+            margin-top: 0;
+            color: #0f172a;
+            font-size: 20px;
             margin-bottom: 16px;
         }
-        .card-header h2 {
-            margin-bottom: 0;
-        }
-        .filter-buttons {
-            display: flex;
-            gap: 8px;
-        }
-        .toggle-button {
-            display: flex;
-            align-items: center;
-            padding: 6px 12px;
-            background-color: #e2e8f0;
-            border-radius: 20px;
-            border: none;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: #475569;
-        }
-        .toggle-button:hover {
-            background-color: #cbd5e1;
-        }
-        .toggle-button.active {
-            background-color: #007bff;
-            color: #fff;
-        }
+
         .form-group {
             margin-bottom: 16px;
         }
-        .input-group { 
-            display: flex;
-            align-items: center;
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            font-size: 14px;
         }
-        .form-group input, .form-group select {
+
+        input[type="text"],
+        input[type="number"],
+        select {
             width: 100%;
-            padding: 10px;
+            padding: 10px 12px;
             border: 1px solid #cbd5e1;
             border-radius: 6px;
-            font-size: 1rem;
-            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
-            background-color: #fff;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
         }
-        .input-group input {
-            border-top-right-radius: 0;
-            border-bottom-right-radius: 0;
-            flex-grow: 1;
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
         }
-        .barcode-btn { 
-            padding: 8px 12px;
-            border: 1px solid #cbd5e1;
-            border-left: none;
+
+        .input-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background-color: #2563eb;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+
+        .btn-secondary {
             background-color: #e2e8f0;
             color: #334155;
-            border-radius: 6px;
-            border-top-left-radius: 0;
-            border-bottom-left-radius: 0;
-            cursor: pointer;
-            font-size: 1.2rem;
-            line-height: 1;
-            transition: background-color 0.2s;
-            height: 42px; 
         }
-        .barcode-btn:hover {
+
+        .btn-secondary:hover {
             background-color: #cbd5e1;
         }
 
-        .button-group {
-            display: flex;
-            gap: 12px;
-            margin-top: 24px;
-        }
-        .btn {
-            padding: 12px 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            transition: background-color 0.2s, box-shadow 0.2s;
-        }
-        .btn-primary {
-            background-color: #007bff;
-            color: #fff;
-        }
-        .btn-primary:hover {
-            background-color: #0056b3;
-        }
-        .btn-secondary {
-            background-color: #f1f5f9;
-            color: #334155;
-            border: 1px solid #cbd5e1;
-        }
-        .btn-secondary:hover {
-            background-color: #e2e8f0;
-        }
         .btn-danger {
-            background-color: #dc3545;
-            color: #fff;
+            background-color: #ef4444;
+            color: white;
         }
+
         .btn-danger:hover {
-            background-color: #a71d2a;
+            background-color: #dc2626;
         }
-        .btn-full {
-            width: 100%;
-            margin-top: 16px;
+
+        .btn-icon {
+            padding: 10px;
         }
-        .message {
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 0.875rem;
-            margin-bottom: 16px;
-            text-align: center;
-            display: none;
-        }
-        .message.success {
-            background-color: #d1e7dd;
-            color: #0f5132;
-        }
-        .message.error {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-        .list-container {
-            margin-top: 24px;
-        }
-        .list-item {
-            background-color: #fff;
-            padding: 12px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        .list-item:hover {
-            background-color: #f8fafc;
-        }
-        .list-item.selected {
-            border: 2px solid #007bff;
-        }
-        .list-item span {
-            font-weight: 500;
-        }
+
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
-            background-color: #fff;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            margin-top: 16px;
         }
+
         th, td {
-            padding: 12px;
             text-align: left;
+            padding: 12px;
             border-bottom: 1px solid #e2e8f0;
+            font-size: 14px;
         }
+
         th {
-            background-color: #f1f5f9;
+            background-color: #f8fafc;
             font-weight: 600;
-            color: #1e293b;
+            color: #475569;
         }
-        .btn-primary[disabled], .btn-secondary[disabled] {
-            cursor: not-allowed;
-            background-color: #f1f1f1 !important;
-            color: #b0b0b0 !important;
-            border: 1px solid #ddd !important;
-            box-shadow: none !important;
+
+        tr:hover {
+            background-color: #f8fafc;
         }
-        /* Estilos para a nova janela modal */
+
         .modal-overlay {
             position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            display: none; 
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            display: none;
             justify-content: center;
             align-items: center;
             z-index: 1000;
-            animation: fadeIn 0.3s ease-in-out;
         }
 
-        .modal-content {
-            background-color: #fff;
-            padding: 24px;
+        .modal {
+            background-color: white;
             border-radius: 12px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            padding: 20px;
             width: 90%;
-            max-width: 700px;
-            max-height: 90vh;
-            overflow-y: auto;
-            position: relative;
-            animation: slideIn 0.3s ease-in-out;
-        }
-        
-        @keyframes slideIn {
-            from { transform: translateY(-50px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
+            max-width: 500px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
         }
 
         .modal-header {
@@ -305,1310 +204,663 @@
             align-items: center;
             margin-bottom: 16px;
         }
-        .modal-header h2 {
+
+        .modal-header h3 {
             margin: 0;
-            font-size: 1.5rem;
+            font-size: 18px;
         }
 
-        .close-button {
+        .close-btn {
             background: none;
             border: none;
-            font-size: 1.5rem;
+            font-size: 20px;
             cursor: pointer;
-            color: #999;
-            transition: color 0.2s;
-        }
-        .close-button:hover {
-            color: #333;
+            color: #64748b;
         }
 
-        /* Estilos específicos para a aba Relatórios para diminuir o tamanho dos botões */
-        #relatorio .button-group .btn {
-            padding: 8px 12px;
-            font-size: 0.9rem;
-        }
-        
-        /* Estilos para o novo modal de exclusão */
-        .delete-list-container {
-            margin-top: 16px;
-            max-height: 400px;
-            overflow-y: auto;
-            border: 1px solid #e2e8f0;
+        #reader-container {
+            width: 100%;
+            min-height: 250px;
+            background-color: #000;
             border-radius: 8px;
-            padding: 8px;
+            overflow: hidden;
+            position: relative;
         }
-        .delete-list-item {
-            display: flex;
-            align-items: center;
-            padding: 8px;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .delete-list-item:last-child {
-            border-bottom: none;
-        }
-        .delete-list-item input[type="checkbox"] {
-            margin-right: 12px;
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
         }
 
         @media (max-width: 600px) {
-            .tab-button {
-                font-size: 0.8rem;
-                padding: 10px 8px;
-            }
-            #relatorio .button-group,
-            .filter-buttons {
-                flex-direction: column;
-                gap: 8px;
-            }
-            #relatorio .button-group .btn,
-            .filter-buttons .toggle-button {
-                width: 100%;
-                font-size: 0.85rem;
-                padding: 10px 12px;
+            .grid-2 {
+                grid-template-columns: 1fr;
             }
         }
+
+        .search-container {
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: white;
+            border: 1px solid #cbd5e1;
+            border-radius: 0 0 6px 6px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+        }
+
+        .search-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .search-item:hover {
+            background-color: #f8fafc;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-success { background-color: #dcfce7; color: #166534; }
+        .badge-warning { background-color: #fef9c3; color: #854d0e; }
+        .badge-danger { background-color: #fee2e2; color: #991b1b; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <hgroup>
-                <h1>Gerenciador de Estoque</h1>
-                <p>Criado por: Edson Ribeiro</p>
-            </hgroup>
-        </div>
 
-        <div class="tab-buttons" id="tab-buttons">
-            <button class="tab-button" data-tab="cadastro">Cadastro de Produtos</button>
-            <button class="tab-button active" data-tab="estoque">Estoque</button>
-            <button class="tab-button" data-tab="relatorio">Relatórios</button>
-            <button class="tab-button" data-tab="gerenciar">Gerenciar Estoque</button>
-        </div>
+<div class="container">
+    <div class="tabs">
+        <button class="tab-button active" onclick="switchTab('inventory')">Estoque</button>
+        <button class="tab-button" onclick="switchTab('products')">Cadastro de Produtos</button>
+        <button class="tab-button" onclick="switchTab('locations')">Locais / Sublocais</button>
+        <button class="tab-button" onclick="switchTab('others')">Outros</button>
+    </div>
 
-        <div id="tab-contents-container">
-            <div class="tab-content" data-tab="cadastro">
-                <div class="card">
-                    <div class="card-header">
-                        <h2>Cadastro de Produtos</h2>
-                        <button type="button" class="btn btn-primary" id="btn-search-product" disabled>Pesquisar</button>
-                    </div>
-                    <div id="message-cadastro" class="message"></div>
-                    <form id="form-cadastro">
-                        <div class="form-group">
-                            <label for="product-code">Código do Item</label>
-                            <input type="number" id="product-code" required step="1" onkeydown="return event.key !== 'e' && event.key !== 'E'">
-                        </div>
-                        <div class="form-group">
-                            <label for="product-gtin">GTIN (Código de Barras) - Opcional</label>
-                            <div class="input-group">
-                                <input type="number" id="product-gtin" step="1" onkeydown="return event.key !== 'e' && event.key !== 'E'">
-                                <button type="button" class="barcode-btn" title="Ler Código de Barras" data-target-input="product-gtin" data-target-tab="cadastro">&#x2328;</button>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="product-description">Descrição do Item</label>
-                            <input type="text" id="product-description" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="product-sector">Setor</label>
-                            <select id="product-sector" required>
-                                <option value="" disabled selected>Selecione um setor</option>
-                                <option value="Açougue">Açougue</option>
-                                <option value="Hortifruti">Hortifruti</option>
-                                <option value="Outros">Outros</option>
-                            </select>
-                        </div>
-                        <div class="button-group">
-                            <button type="submit" class="btn btn-primary">Salvar</button>
-                            <button type="button" class="btn btn-secondary" id="btn-delete-product">Excluir</button>
-                        </div>
-                    </form>
-                    <div class="button-group" style="margin-top: 16px;">
-                        <input type="file" id="file-input" accept=".csv" style="display: none;">
-                        <button type="button" class="btn btn-secondary btn-full" id="btn-import-csv">Importar CSV</button>
+    <!-- ABA 1: ESTOQUE -->
+    <div id="tab-inventory" class="tab-content active">
+        <h2>Movimentação e Consulta de Estoque</h2>
+        <div class="grid-2">
+            <div>
+                <div class="form-group">
+                    <label for="inventory-item-code">Código do Item</label>
+                    <input type="text" id="inventory-item-code" placeholder="Digite ou selecione o item">
+                </div>
+
+                <div class="form-group">
+                    <label for="inventory-gtin">GTIN (Código de Barras) - Opcional</label>
+                    <div class="input-group">
+                        <input type="text" id="inventory-gtin" placeholder="Leia ou digite o GTIN">
+                        <button class="btn btn-secondary btn-icon" onclick="startBarcodeScan('inventory-gtin', 'inventory')">
+                            📱 Leitor
+                        </button>
                     </div>
                 </div>
-            </div>
 
-            <div class="tab-content" data-tab="estoque">
-                <div class="card">
-                    <div class="card-header">
-                        <h2>Gerenciamento de Estoque</h2>
-                        <div class="filter-buttons">
-                            <button class="toggle-button" data-filter="Açougue">
-                                Açougue
-                            </button>
-                            <button class="toggle-button" data-filter="Hortifruti">
-                                Hortifruti
-                            </button>
-                            <button class="toggle-button" data-filter="Outros">
-                                Outros
-                            </button>
-                        </div>
+                <div class="form-group">
+                    <label for="inventory-product-name">Nome do Produto</label>
+                    <input type="text" id="inventory-product-name" readonly placeholder="Carregado automaticamente">
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label for="inventory-quantity">Quantidade</label>
+                        <input type="number" id="inventory-quantity" min="1" value="1">
                     </div>
-                    <div id="message-estoque" class="message"></div>
-                    <form id="form-estoque">
-                        <div class="form-group">
-                            <label for="inventory-code">Código do Item</label>
-                            <input type="number" id="inventory-code" required step="1" onkeydown="return event.key !== 'e' && event.key !== 'E'" onchange="this.value.trim() ? document.getElementById('inventory-quantity').focus() : document.getElementById('inventory-description').focus();">
-                        </div>
-                        <div class="form-group">
-                            <label for="inventory-gtin">GTIN (Código de Barras) - Opcional</label>
-                            <div class="input-group">
-                                <input type="number" id="inventory-gtin" step="1" onkeydown="return event.key !== 'e' && event.key !== 'E'">
-                                <button type="button" class="barcode-btn" title="Ler Código de Barras" data-target-input="inventory-gtin" data-target-tab="estoque">&#x2328;</button>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="inventory-description">Descrição do Item</label>
-                            <input type="text" id="inventory-description" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="inventory-quantity">Quantidade a Adicionar/Subtrair</label>
-                            <input type="number" id="inventory-quantity" required step="any">
-                        </div>
-                        <div class="form-group">
-                            <label for="inventory-total">Total Atual</label>
-                            <input type="text" id="inventory-total" disabled>
-                        </div>
-                        <div class="button-group">
-                            <button type="submit" class="btn btn-primary">Salvar</button>
-                            <button type="button" id="open-zero-stock" class="btn btn-secondary">Itens não informado</button>
-                        </div>
-                    </form>
-                    <div class="list-container">
-                        <h3>Itens em Estoque</h3>
-                        <ul id="inventory-list"></ul>
+                    <div class="form-group">
+                        <label for="inventory-type">Tipo de Movimento</label>
+                        <select id="inventory-type">
+                            <option value="entry">Entrada</option>
+                            <option value="exit">Saída</option>
+                        </select>
                     </div>
                 </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label for="inventory-location">Local</label>
+                        <select id="inventory-location" onchange="updateSublocationsSelect('inventory-location', 'inventory-sublocation')">
+                            <option value="">Selecione...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="inventory-sublocation">Sublocal</label>
+                        <select id="inventory-sublocation">
+                            <option value="">Selecione um local primeiro</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveInventoryMovement()">Salvar</button>
+                <button class="btn btn-secondary" onclick="resetInventoryForm()">Limpar</button>
             </div>
 
-            <div class="tab-content" data-tab="relatorio" id="relatorio">
-                <div class="card">
-                    <h2>Relatórios</h2>
-                    <div id="message-relatorio" class="message"></div>
-                    <div class="button-group">
-                        <button id="export-csv" class="btn btn-primary">Exportar para CSV</button>
-                        <button id="export-pdf" class="btn btn-secondary">Exportar para PDF</button>
-                        <button id="open-product-report" class="btn btn-secondary">Relatório de produtos cadastrados</button>
+            <div>
+                <h3>Itens em Estoque</h3>
+                <div class="search-container">
+                    <input type="text" id="inventory-search" placeholder="Buscar no estoque..." onkeyup="renderInventoryTable()">
+                </div>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Produto</th>
+                                <th>Local / Sublocal</th>
+                                <th>Qtd</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventory-table-body">
+                            <!-- Preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ABA 2: PRODUTOS -->
+    <div id="tab-products" class="tab-content">
+        <h2>Cadastro de Produtos</h2>
+        <div class="grid-2">
+            <div>
+                <div class="form-group">
+                    <label for="product-code">Código do Item / SKU *</label>
+                    <input type="text" id="product-code" placeholder="Ex: PROD-001">
+                </div>
+
+                <div class="form-group">
+                    <label for="product-gtin">GTIN / Código de Barras</label>
+                    <div class="input-group">
+                        <input type="text" id="product-gtin" placeholder="Leia ou digite o GTIN">
+                        <button class="btn btn-secondary btn-icon" onclick="startBarcodeScan('product-gtin', 'products')">
+                            📱 Leitor
+                        </button>
                     </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="product-name">Nome do Produto *</label>
+                    <input type="text" id="product-name" placeholder="Ex: Parafuso Sextavado M8">
+                </div>
+
+                <div class="form-group">
+                    <label for="product-description">Descrição</label>
+                    <input type="text" id="product-description" placeholder="Detalhes adicionais...">
+                </div>
+
+                <button class="btn btn-primary" onclick="saveProduct()">Salvar Produto</button>
+                <button class="btn btn-secondary" onclick="resetProductForm()">Limpar</button>
+            </div>
+
+            <div>
+                <h3>Produtos Cadastrados</h3>
+                <div style="overflow-x: auto;">
                     <table>
                         <thead>
                             <tr>
                                 <th>Código</th>
-                                <th>Descrição</th>
-                                <th>Setor</th>
-                                <th>Total</th>
+                                <th>GTIN</th>
+                                <th>Nome</th>
+                                <th>Ações</th>
                             </tr>
                         </thead>
-                        <tbody id="report-table-body"></tbody>
+                        <tbody id="products-table-body">
+                            <!-- Preenchido via JS -->
+                        </tbody>
                     </table>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <div class="tab-content" data-tab="gerenciar">
-                <div class="card">
-                    <h2>Gerenciar Estoque</h2>
-                    <div id="message-gerenciar" class="message"></div>
-                    <p>Use as ferramentas abaixo para gerenciar seu estoque de forma geral. Cuidado, esta ação não pode ser desfeita.</p>
-                    <button id="clear-all" class="btn btn-danger btn-full">Apagar todos os itens do estoque</button>
-                    <button id="clear-products-by-sector-btn" class="btn btn-danger btn-full" style="margin-top: 10px;">Apagar todos itens cadastrados</button>
+    <!-- ABA 3: LOCAIS E SUBLOCAIS -->
+    <div id="tab-locations" class="tab-content">
+        <h2>Gerenciar Locais e Sublocais</h2>
+        <div class="grid-2">
+            <div>
+                <h3>Novo Local</h3>
+                <div class="form-group">
+                    <label for="new-location-name">Nome do Local</label>
+                    <input type="text" id="new-location-name" placeholder="Ex: Almoxarifado A">
+                </div>
+                <button class="btn btn-primary" onclick="saveLocation()">Adicionar Local</button>
+
+                <h3 style="margin-top: 24px;">Novo Sublocal</h3>
+                <div class="form-group">
+                    <label for="parent-location-select">Local Pai</label>
+                    <select id="parent-location-select">
+                        <option value="">Selecione...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="new-sublocation-name">Nome do Sublocal</label>
+                    <input type="text" id="new-sublocation-name" placeholder="Ex: Prateleira 1">
+                </div>
+                <button class="btn btn-primary" onclick="saveSublocation()">Adicionar Sublocal</button>
+            </div>
+
+            <div>
+                <h3>Estrutura Cadastrada</h3>
+                <div id="locations-list">
+                    <!-- Preenchido via JS -->
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="report-modal-overlay" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modal-title"></h2>
-                <button class="close-button" onclick="closeModal()">&times;</button>
-            </div>
-            <div id="modal-body"></div>
+    <!-- ABA 4: OUTROS -->
+    <div id="tab-others" class="tab-content">
+        <h2>Configurações e Dados</h2>
+        <p>Gerencie o banco de dados local da aplicação.</p>
+        <button class="btn btn-danger" onclick="clearAllData()">Apagar Todos os Dados</button>
+    </div>
+</div>
+
+<!-- MODAL DO SCANNER DE CÓDIGO DE BARRAS -->
+<div id="scanner-modal-overlay" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="scanner-title">Leitor de Código de Barras</h3>
+            <button class="close-btn" onclick="stopAndCloseScanner()">&times;</button>
+        </div>
+        <div id="reader-container"></div>
+        <p id="scanner-result" style="text-align: center; font-weight: bold; margin-top: 10px; min-height: 20px;"></p>
+        <div style="text-align: right; margin-top: 10px;">
+            <button class="btn btn-secondary" onclick="stopAndCloseScanner()">Cancelar</button>
         </div>
     </div>
+</div>
 
-    <div id="delete-product-modal-overlay" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Excluir Produtos do Setor</h2>
-                <button class="close-button" onclick="closeDeleteModal()">&times;</button>
-            </div>
-            <p>Selecione os produtos que deseja excluir do setor <strong><span id="delete-sector-name"></span></strong>. Esta ação é irreversível.</p>
-            <div class="delete-list-container">
-                <form id="form-delete-products"></form>
-            </div>
-            <div class="button-group" style="justify-content: flex-end;">
-                <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Cancelar</button>
-                <button type="button" class="btn btn-danger" onclick="deleteSelectedProducts()">Excluir Selecionados</button>
-            </div>
-        </div>
-    </div>
-    
-    <div id="sector-select-modal-overlay" class="modal-overlay">
-        <div class="modal-content" style="max-width: 400px; text-align: center;">
-            <div class="modal-header">
-                <h2 id="sector-select-title">Selecione o setor para o relatório</h2>
-                <button class="close-button" onclick="closeSectorModal()">&times;</button>
-            </div>
-            <div class="button-group">
-                <button class="btn btn-primary" onclick="generateProductReport('Açougue');">Açougue</button>
-                <button class="btn btn-secondary" onclick="generateProductReport('Hortifruti');">Hortifruti</button>
-                <button class="btn btn-secondary" onclick="generateProductReport('Outros');">Outros</button>
-            </div>
-        </div>
-    </div>
+<script>
+    // --- ESTADO DA APLICAÇÃO (LOCAL STORAGE) ---
+    let db = {
+        products: JSON.parse(localStorage.getItem('ge_products')) || [],
+        locations: JSON.parse(localStorage.getItem('ge_locations')) || [],
+        sublocations: JSON.parse(localStorage.getItem('ge_sublocations')) || [],
+        inventory: JSON.parse(localStorage.getItem('ge_inventory')) || []
+    };
 
-    <div id="csv-sector-modal-overlay" class="modal-overlay">
-        <div class="modal-content" style="max-width: 400px; text-align: center;">
-            <div class="modal-header">
-                <h2 id="csv-sector-title">Selecione o setor para o CSV</h2>
-                <button class="close-button" onclick="closeCsvSectorModal()">&times;</button>
-            </div>
-            <div class="button-group">
-                <button class="btn btn-primary" onclick="openFileInput('Açougue');">Açougue</button>
-                <button class="btn btn-secondary" onclick="openFileInput('Hortifruti');">Hortifruti</button>
-                <button class="btn btn-secondary" onclick="openFileInput('Outros');">Outros</button>
-            </div>
-        </div>
-    </div>
+    function saveData() {
+        localStorage.setItem('ge_products', JSON.stringify(db.products));
+        localStorage.setItem('ge_locations', JSON.stringify(db.locations));
+        localStorage.setItem('ge_sublocations', JSON.stringify(db.sublocations));
+        localStorage.setItem('ge_inventory', JSON.stringify(db.inventory));
+    }
 
-    <div id="scanner-modal-overlay" class="modal-overlay">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h2 id="scanner-title">Leitor de Código de Barras</h2>
-                <button class="close-button" onclick="stopAndCloseScanner()">&times;</button>
-            </div>
-            <div id="reader-container" style="width: 100%;"></div> 
-            <div id="scanner-result" style="margin-top: 15px; font-weight: bold; color: #007bff; text-align: center;"></div>
-            <p style="font-size: 0.75rem; color: #64748b; text-align: center; margin-top: 10px;">
-                *É necessário HTTPS e permissão de câmera para funcionar.
-            </p>
-        </div>
-    </div>
+    // --- NAVEGAÇÃO ENTRE ABAS ---
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-    <script>
-        // Variáveis globais (não dependem do DOM)
-        let html5QrCode = null;
-        let currentInputId = null;
+        event.target.classList.add('active');
+        document.getElementById(`tab-${tabId}`).classList.add('active');
 
-        /**
-         * Para o scanner e fecha o modal.
-         */
-        window.stopAndCloseScanner = () => {
-            const scannerModalOverlay = document.getElementById('scanner-modal-overlay');
-            
-            if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().then(() => {
-                    if(scannerModalOverlay) scannerModalOverlay.style.display = 'none';
-                    html5QrCode.clear();
-                }).catch(err => {
-                    console.error("Erro ao parar o scanner:", err);
-                    if(scannerModalOverlay) scannerModalOverlay.style.display = 'none';
-                    html5QrCode.clear();
-                });
-            } else {
+        if (tabId === 'inventory') {
+            loadLocationSelects();
+            renderInventoryTable();
+        } else if (tabId === 'products') {
+            renderProductsTable();
+        } else if (tabId === 'locations') {
+            loadParentLocationSelect();
+            renderLocationsList();
+        }
+    }
+
+    // --- SCANNER DE CÓDIGO DE BARRAS (ATUALIZADO) ---
+    let html5QrCode = null;
+    let currentInputId = null;
+    const scannerModalOverlay = document.getElementById('scanner-modal-overlay');
+
+    window.stopAndCloseScanner = () => {
+        if (html5QrCode && html5QrCode.isScanning) {
+            html5QrCode.stop().then(() => {
+                scannerModalOverlay.style.display = 'none';
+                html5QrCode.clear();
+            }).catch(err => {
+                console.error("Erro ao parar o scanner:", err);
+                scannerModalOverlay.style.display = 'none';
                 if (html5QrCode) html5QrCode.clear();
-                if(scannerModalOverlay) scannerModalOverlay.style.display = 'none';
-            }
+            });
+        } else {
+            if (html5QrCode) html5QrCode.clear();
+            scannerModalOverlay.style.display = 'none';
+        }
+    };
+
+    window.startBarcodeScan = (inputId, tabId) => {
+        // Verifica se a biblioteca foi carregada antes de iniciar
+        if (typeof Html5Qrcode === "undefined") {
+            alert("Erro: A biblioteca de câmera ainda está carregando ou foi bloqueada. Verifique sua conexão com a internet.");
+            return;
+        }
+
+        currentInputId = inputId;
+        const readerContainerId = "reader-container";
+        const scannerResultDiv = document.getElementById('scanner-result');
+
+        if (html5QrCode) {
+            html5QrCode.clear();
+        }
+
+        html5QrCode = new Html5Qrcode(readerContainerId);
+
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 100 },
+            disableFlip: false
         };
 
-        /**
-         * Inicializa o scanner de código de barras.
-         */
-        window.startBarcodeScan = (inputId, tabId) => {
-            // Verifica se a biblioteca Html5Qrcode está disponível ANTES de prosseguir
-            // CORREÇÃO APLICADA AQUI: Html15Qrcode -> Html5Qrcode
-            if (typeof Html5Qrcode === 'undefined') {
-                const scannerModalOverlay = document.getElementById('scanner-modal-overlay');
-                const scannerResultDiv = document.getElementById('scanner-result');
-                
-                // MENSAGEM DE ERRO CRÍTICA: A biblioteca não carregou.
-                if(scannerResultDiv) scannerResultDiv.textContent = 'Erro: Biblioteca do scanner ainda não carregada. Verifique no Console do Navegador (F12) se o arquivo html5-qrcode.min.js foi carregado com sucesso.';
-                if(scannerModalOverlay) scannerModalOverlay.style.display = 'flex';
-                
-                console.error("Erro Crítico: Html5Qrcode is not defined. O script não foi carregado.");
-                // Fechar após 4 segundos para o usuário ver a mensagem
-                setTimeout(window.stopAndCloseScanner, 4000); 
-                return;
+        const onScanSuccess = (decodedText) => {
+            document.getElementById(currentInputId).value = decodedText;
+            scannerResultDiv.textContent = `Capturado: ${decodedText}`;
+
+            if (currentInputId === 'inventory-gtin') {
+                performGtinSearch();
             }
 
-            currentInputId = inputId;
-            const readerContainerId = "reader-container";
-            const scannerResultDiv = document.getElementById('scanner-result');
-            const scannerModalOverlay = document.getElementById('scanner-modal-overlay'); 
+            setTimeout(() => {
+                stopAndCloseScanner();
+            }, 400);
+        };
 
-            if (!scannerModalOverlay) {
-                console.error("Erro: Elemento scanner-modal-overlay não encontrado no DOM.");
-                return;
-            }
+        const onScanError = () => {};
 
-            if (html5QrCode) {
-                html5QrCode.clear();
-            }
-            
-            // Cria a instância do scanner 
-            // CORREÇÃO APLICADA AQUI: Html15Qrcode -> Html5Qrcode
-            html5QrCode = new Html5Qrcode(readerContainerId);
+        document.getElementById('scanner-title').textContent = "Leitor de Código de Barras";
+        scannerResultDiv.textContent = 'Acessando câmera...';
+        scannerModalOverlay.style.display = 'flex';
 
-            const config = {
-                fps: 10,
-                qrbox: { width: 250, height: 100 }, 
-                disableFlip: false,
-            };
-
-            const onScanSuccess = (decodedText, decodedResult) => {
-                // Preenche o campo de input
-                document.getElementById(currentInputId).value = decodedText;
+        // Busca e prioriza a câmera traseira do celular
+        Html5Qrcode.getCameras().then(devices => {
+            if (devices && devices.length) {
+                let backCamera = devices.find(device => 
+                    device.label.toLowerCase().includes('back') || 
+                    device.label.toLowerCase().includes('traseira') ||
+                    device.label.toLowerCase().includes('environment') ||
+                    device.label.toLowerCase().includes('rear')
+                );
                 
-                scannerResultDiv.textContent = `Sucesso: ${decodedText}`;
-                
-                // Se for o GTIN de estoque, aciona a busca automática
-                if (currentInputId === 'inventory-gtin') {
-                    performGtinSearch(); 
-                }
+                let cameraId = backCamera ? backCamera.id : devices[devices.length - 1].id;
 
-                // Para o scanner e fecha o modal após um pequeno delay
-                setTimeout(() => {
-                    stopAndCloseScanner();
-                }, 500); 
-            };
-
-            const onScanError = (errorMessage) => {
-                // Ignora erros de leitura contínuos
-            };
-
-            // Abre o modal
-            document.getElementById('scanner-title').textContent = "Leitor de Código de Barras";
-            scannerResultDiv.textContent = 'Aguardando leitura...';
-            scannerModalOverlay.style.display = 'flex';
-
-            // Inicia o scanner
+                html5QrCode.start(
+                    cameraId,
+                    config,
+                    onScanSuccess,
+                    onScanError
+                ).catch(err => {
+                    scannerResultDiv.textContent = `Erro na câmera: ${err.message || err}`;
+                });
+            } else {
+                html5QrCode.start(
+                    { facingMode: { ideal: "environment" } },
+                    config,
+                    onScanSuccess,
+                    onScanError
+                ).catch(err => {
+                    scannerResultDiv.textContent = `Erro ao abrir câmera: ${err.message || err}`;
+                });
+            }
+        }).catch(err => {
+            // Fallback direto com facingMode se a permissão de listar câmeras falhar
             html5QrCode.start(
-                { facingMode: "environment" }, 
+                { facingMode: "environment" },
                 config,
                 onScanSuccess,
                 onScanError
-            ).catch(err => {
-                // ESTE É O ERRO QUE OCORRE DEPOIS QUE A BIBLIOTECA CARREGA (NotAllowedError)
-                scannerResultDiv.textContent = `Erro: ${err.message}. Verifique a permissão da câmera e se o site está em HTTPS.`;
-                
-                setTimeout(() => {
-                    stopAndCloseScanner();
-                    showMessage('error', 'Falha ao iniciar o leitor de código de barras. Verifique HTTPS e permissões.', tabId);
-                }, 4000); 
+            ).catch(e => {
+                scannerResultDiv.textContent = `Erro de permissão: ${e.message || e}`;
             });
-        };
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            // Funções de armazenamento local
-            const saveToLocalStorage = (key, data) => {
-                try {
-                    localStorage.setItem(key, JSON.stringify(data));
-                } catch (e) {
-                    console.error("Erro ao salvar no Local Storage: ", e);
-                }
-            };
-
-            const loadFromLocalStorage = (key, defaultValue) => {
-                try {
-                    const data = localStorage.getItem(key);
-                    // Retorna o valor parseado ou o valor padrão (ex: {} ou [])
-                    return data ? JSON.parse(data) : defaultValue;
-                } catch (e) {
-                    console.error("Erro ao carregar do Local Storage: ", e);
-                    return defaultValue;
-                }
-            };
-
-            // Variáveis globais para armazenar os dados, o filtro e o item selecionado
-            let products = loadFromLocalStorage('products', {}); 
-            let inventory = loadFromLocalStorage('inventory', {});
-            let inventoryHistory = loadFromLocalStorage('inventoryHistory', {});
-            let currentFilter = 'Açougue';
-            let selectedItemCode = null;
-
-            // Seletores de elementos HTML
-            const tabButtons = document.querySelectorAll('.tab-button');
-            const tabContents = document.querySelectorAll('.tab-content');
-            const filterButtons = document.querySelectorAll('.toggle-button');
-            const acougueFilterBtn = document.querySelector('[data-filter="Açougue"]');
-            const importCsvBtn = document.getElementById('btn-import-csv');
-            const fileInput = document.getElementById('file-input');
-            const clearProductsBySectorBtn = document.getElementById('clear-products-by-sector-btn');
-
-            const formCadastro = document.getElementById('form-cadastro');
-            const btnSearchProduct = document.getElementById('btn-search-product');
-            const btnDeleteProduct = document.getElementById('btn-delete-product');
-            const formEstoque = document.getElementById('form-estoque');
-            const exportCsvBtn = document.getElementById('export-csv');
-            const exportPdfBtn = document.getElementById('export-pdf');
-            const openZeroStockBtn = document.getElementById('open-zero-stock');
-            const clearAllBtn = document.getElementById('clear-all');
-            const openProductReportBtn = document.getElementById('open-product-report');
-            
-            // Seletores dos modais
-            const reportModalOverlay = document.getElementById('report-modal-overlay');
-            const modalTitle = document.getElementById('modal-title');
-            const modalBody = document.getElementById('modal-body');
-            const deleteProductModalOverlay = document.getElementById('delete-product-modal-overlay');
-            const deleteSectorNameSpan = document.getElementById('delete-sector-name');
-            const formDeleteProducts = document.getElementById('form-delete-products');
-            const sectorSelectModalOverlay = document.getElementById('sector-select-modal-overlay');
-            const csvSectorModalOverlay = document.getElementById('csv-sector-modal-overlay');
-
-            // Seletores de campos do formulário e listas
-            const inventoryCodeInput = document.getElementById('inventory-code');
-            const inventoryGtinInput = document.getElementById('inventory-gtin'); 
-            const inventoryDescriptionInput = document.getElementById('inventory-description');
-            const inventoryQuantityInput = document.getElementById('inventory-quantity');
-            const inventoryTotalInput = document.getElementById('inventory-total');
-            const productCodeInput = document.getElementById('product-code');
-            const productGtinInput = document.getElementById('product-gtin'); 
-            const productDescriptionInput = document.getElementById('product-description');
-            const productSectorInput = document.getElementById('product-sector');
-            
-            // Seletores dos botões de código de barras
-            const barcodeButtons = document.querySelectorAll('.barcode-btn');
-
-            // Lógica para limitar a quantidade de casas decimais
-            inventoryQuantityInput.addEventListener('input', (event) => {
-                let value = event.target.value;
-                const parts = value.split('.');
-                if (parts.length > 1) {
-                    parts[1] = parts[1].slice(0, 1);
-                    event.target.value = parts.join('.');
-                }
-            });
-            
-            // NOVA FUNÇÃO: Detecção automática de delimitador para arquivos CSV
-            function detectDelimiter(csvText) {
-                const commonDelimiters = [',', ';', '\t', '|']; 
-                const lines = csvText.trim().split('\n');
-                if (lines.length === 0) return ',';
-                
-                const firstLine = lines[0];
-                let bestDelimiter = ',';
-                let maxCount = 0;
-
-                commonDelimiters.forEach(delimiter => {
-                    const count = (firstLine.match(new RegExp('\\' + delimiter, 'g')) || []).length;
-                    if (count > maxCount) {
-                        maxCount = count;
-                        bestDelimiter = delimiter;
-                    }
-                });
-
-                if (firstLine.includes(';') && maxCount === 0) {
-                    return ';';
-                }
-
-                if (maxCount > 0) {
-                    return bestDelimiter;
-                }
-                return ','; 
-            }
-
-            // Funções para abrir e fechar os modais
-            const openModal = (title, content) => {
-                modalTitle.textContent = title;
-                modalBody.innerHTML = content;
-                reportModalOverlay.style.display = 'flex';
-            };
-
-            window.closeModal = () => {
-                reportModalOverlay.style.display = 'none';
-            };
-
-            const openSectorModal = () => {
-                sectorSelectModalOverlay.style.display = 'flex';
-            };
-
-            window.closeSectorModal = () => {
-                sectorSelectModalOverlay.style.display = 'none';
-            };
-
-            const openCsvSectorModal = () => {
-                csvSectorModalOverlay.style.display = 'flex';
-            };
-
-            window.closeCsvSectorModal = () => {
-                csvSectorModalOverlay.style.display = 'none';
-            };
-            
-            window.closeDeleteModal = () => {
-                deleteProductModalOverlay.style.display = 'none';
-            };
-
-            // Função para fechar o modal e preencher os campos de estoque
-            window.selectZeroStockItem = (code, description, gtin) => {
-                closeModal();
-                inventoryCodeInput.value = code;
-                inventoryGtinInput.value = gtin || '';
-                inventoryDescriptionInput.value = description;
-                inventoryTotalInput.value = 0;
-                inventoryQuantityInput.value = '';
-                inventoryQuantityInput.focus();
-            };
-
-            window.selectFoundItem = (code, description, total, gtin) => {
-                closeModal();
-                inventoryCodeInput.value = code;
-                inventoryGtinInput.value = gtin || '';
-                inventoryDescriptionInput.value = description;
-                inventoryTotalInput.value = total;
-                inventoryQuantityInput.value = '';
-                inventoryQuantityInput.focus();
-            };
-
-            window.selectProductItem = (code, description, sector, gtin) => {
-                closeModal();
-                productCodeInput.value = code;
-                productGtinInput.value = gtin || '';
-                productDescriptionInput.value = description;
-                productSectorInput.value = sector;
-            };
-
-            // Lógica para atualizar o estado do botão de pesquisa
-            const updateSearchButtonState = () => {
-                const code = productCodeInput.value.trim();
-                const description = productDescriptionInput.value.trim();
-                const gtin = productGtinInput.value.trim();
-
-                const isOnlyCodeFilled = code.length > 0 && description.length === 0 && gtin.length === 0;
-                const isOnlyDescriptionFilled = code.length === 0 && description.length > 0 && gtin.length === 0;
-                const isOnlyGtinFilled = code.length === 0 && description.length === 0 && gtin.length > 0;
-                
-                btnSearchProduct.disabled = !(isOnlyCodeFilled || isOnlyDescriptionFilled || isOnlyGtinFilled);
-            };
-
-            // Adiciona a funcionalidade do botão de pesquisa
-            btnSearchProduct.addEventListener('click', () => {
-                const code = productCodeInput.value.trim();
-                const description = productDescriptionInput.value.trim();
-                const gtin = productGtinInput.value.trim();
-
-                let foundProducts = [];
-
-                if (code) {
-                    const product = products[code];
-                    if (product) {
-                        foundProducts.push(product);
-                    }
-                } else if (gtin) {
-                    foundProducts = Object.values(products).filter(p => p.gtin === gtin);
-                } else if (description) {
-                    foundProducts = Object.values(products).filter(p => p.descricao.toLowerCase().includes(description.toLowerCase()));
-                } else {
-                    showMessage('error', 'Por favor, insira o Código, o GTIN ou a Descrição para pesquisar.', 'cadastro');
-                    return;
-                }
-
-                if (foundProducts.length === 1) {
-                    productCodeInput.value = foundProducts[0].codigo;
-                    productGtinInput.value = foundProducts[0].gtin || '';
-                    productDescriptionInput.value = foundProducts[0].descricao;
-                    productSectorInput.value = foundProducts[0].setor;
-                    showMessage('success', 'Produto encontrado!', 'cadastro');
-                } else if (foundProducts.length > 1) {
-                    let resultsHtml = `
-                        <style> 
-                            .result-table { width: 100%; border-collapse: collapse; } 
-                            .result-table th, .result-table td { border: 1px solid #ddd; padding: 8px; text-align: left; cursor: pointer; } 
-                            .result-table th { background-color: #f2f2f2; } 
-                        </style>
-                        <p>Dê um **duplo clique** em um item para selecioná-lo.</p>
-                        <table class="result-table">
-                            <thead>
-                                <tr>
-                                    <th>Código</th>
-                                    <th>GTIN</th>
-                                    <th>Descrição</th>
-                                    <th>Setor</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${foundProducts.map(item => `
-                                    <tr ondblclick="selectProductItem('${item.codigo}', '${item.descricao.replace(/'/g, "\\'")}', '${item.setor}', '${item.gtin || ''}')">
-                                        <td>${item.codigo}</td>
-                                        <td>${item.gtin || '-'}</td>
-                                        <td>${item.descricao}</td>
-                                        <td>${item.setor}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    `;
-                    openModal(`Resultados da Busca para "${code || gtin || description}"`, resultsHtml);
-                } else {
-                    productCodeInput.value = '';
-                    productGtinInput.value = '';
-                    productSectorInput.value = '';
-                    showMessage('error', 'Nenhum produto encontrado. Preencha os dados para cadastrá-lo.', 'cadastro');
-                }
-            });
-
-            // Adiciona listeners para atualizar o estado do botão de pesquisa
-            productCodeInput.addEventListener('input', updateSearchButtonState);
-            productGtinInput.addEventListener('input', updateSearchButtonState);
-            productDescriptionInput.addEventListener('input', updateSearchButtonState);
-
-            // Funções de utilidade
-            const showMessage = (type, content, tabId) => {
-                const messageDiv = document.getElementById(`message-${tabId}`);
-                if (messageDiv) {
-                    messageDiv.innerHTML = content;
-                    messageDiv.className = `message ${type}`;
-                    messageDiv.style.display = 'block';
-                    setTimeout(() => {
-                        messageDiv.style.display = 'none';
-                    }, 5000);
-                }
-            };
-
-            // Lógica de alternância de abas
-            tabButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    const tab = button.dataset.tab;
-                    tabButtons.forEach(btn => btn.classList.remove('active'));
-                    tabContents.forEach(content => content.classList.remove('active'));
-
-                    button.classList.add('active');
-                    document.querySelector(`.tab-content[data-tab="${tab}"]`).classList.add('active');
-
-                    // Se for a aba de estoque, atualiza a lista e o filtro
-                    if (tab === 'estoque') {
-                        // Garante que o filtro 'Açougue' está ativo na inicialização (se nada foi clicado)
-                        filterButtons.forEach(btn => btn.classList.remove('active'));
-                        acougueFilterBtn.classList.add('active');
-                        currentFilter = 'Açougue';
-                        updateInventoryList();
-                    }
-                    if (tab === 'relatorio') {
-                        updateInventoryList();
-                    }
-                });
-            });
-
-            // Lógica dos botões de filtro
-            filterButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    const filter = button.dataset.filter;
-                    if (currentFilter !== filter) {
-                        currentFilter = filter;
-                        filterButtons.forEach(btn => btn.classList.remove('active'));
-                        button.classList.add('active');
-                        updateInventoryList();
-                    }
-                });
-            });
-
-            // Adiciona listeners de clique aos botões de código de barras
-            barcodeButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    const inputId = button.dataset.targetInput;
-                    const tabId = button.dataset.targetTab;
-                    // Chama a função global window.startBarcodeScan
-                    window.startBarcodeScan(inputId, tabId);
-                });
-            });
-
-            const updateInventoryList = () => {
-                const inventoryList = document.getElementById('inventory-list');
-                const reportTableBody = document.getElementById('report-table-body');
-                inventoryList.innerHTML = '';
-                reportTableBody.innerHTML = '';
-                selectedItemCode = null;
-
-                const allProducts = Object.values(products);
-                const filteredProducts = currentFilter ? allProducts.filter(p => p.setor === currentFilter) : allProducts;
-
-                const itemsWithStock = filteredProducts.map(product => {
-                    const inventoryItem = inventory[product.codigo];
-                    const total = inventoryItem ? inventoryItem.total : 0;
-                    return {
-                        codigo: product.codigo,
-                        descricao: product.descricao,
-                        setor: product.setor,
-                        total: total,
-                        gtin: product.gtin
-                    };
-                }).filter(item => item.total !== 0);
-
-                if (itemsWithStock.length === 0) {
-                    inventoryList.innerHTML = '<li style="color: #64748b;">Nenhum item em estoque.</li>';
-                } else {
-                    itemsWithStock.sort((a, b) => a.descricao.localeCompare(b.descricao));
-
-                    itemsWithStock.forEach(item => {
-                        const li = document.createElement('li');
-                        li.className = 'list-item';
-                        const displayGtin = item.gtin ? ` (${item.gtin})` : '';
-                        li.innerHTML = `
-                            <span>${item.codigo}: ${item.descricao}${displayGtin}</span>
-                            <span style="color: ${item.total < 0 ? '#dc3545' : '#007bff'}; font-weight: 700;">Total: ${item.total}</span>
-                        `;
-
-                        // Adicionando o listener para preencher o formulário
-                        li.addEventListener('click', () => {
-                            document.querySelectorAll('.list-item').forEach(el => el.classList.remove('selected'));
-                            li.classList.add('selected');
-                            
-                            // Preenche os campos do formulário de estoque
-                            selectedItemCode = item.codigo;
-                            inventoryCodeInput.value = item.codigo;
-                            inventoryGtinInput.value = item.gtin || '';
-                            inventoryDescriptionInput.value = item.descricao;
-                            inventoryTotalInput.value = item.total;
-                            inventoryQuantityInput.value = ''; // Limpa o campo de quantidade
-                            inventoryQuantityInput.focus();
-                        });
-
-                        inventoryList.appendChild(li);
-
-                        // Preenche a tabela de relatórios
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `
-                            <td>${item.codigo}</td>
-                            <td>${item.descricao}</td>
-                            <td>${item.setor}</td>
-                            <td>${item.total}</td>
-                        `;
-                        reportTableBody.appendChild(tr);
-                    });
-                }
-            };
-            
-            // Lógica de Busca Automática por Código/GTIN (Aba Estoque)
-            const performInventorySearch = (value, searchBy) => {
-                // Limpa o formulário de estoque
-                inventoryDescriptionInput.value = '';
-                inventoryTotalInput.value = '';
-                inventoryQuantityInput.value = '';
-
-                let productFound = null;
-                
-                if (searchBy === 'code') {
-                    productFound = products[value];
-                } else if (searchBy === 'gtin') {
-                    productFound = Object.values(products).find(p => p.gtin === value);
-                }
-
-                if (productFound) {
-                    // Preenche a descrição e o setor
-                    inventoryCodeInput.value = productFound.codigo;
-                    inventoryGtinInput.value = productFound.gtin || '';
-                    inventoryDescriptionInput.value = productFound.descricao;
-
-                    // Busca o total no inventário
-                    const total = inventory[productFound.codigo] ? inventory[productCodeInput.value].total : 0;
-                    inventoryTotalInput.value = total;
-
-                    // Exibe a mensagem de sucesso e foca no campo de quantidade
-                    showMessage('success', `Produto **${productFound.descricao}** encontrado! Total atual: ${total}`, 'estoque');
-                    inventoryQuantityInput.focus();
-                } else {
-                    inventoryCodeInput.value = '';
-                    inventoryGtinInput.value = '';
-                    showMessage('error', 'Produto não encontrado. Verifique o código/GTIN ou cadastre-o na aba "Cadastro".', 'estoque');
-                }
-            };
-
-            // Função chamada pelo scanner de GTIN
-            window.performGtinSearch = () => {
-                const gtin = inventoryGtinInput.value.trim();
-                if (gtin) {
-                    performInventorySearch(gtin, 'gtin');
-                }
-            };
-
-            // Listener de mudança no campo de Código de Item (Estoque)
-            inventoryCodeInput.addEventListener('change', () => {
-                const code = inventoryCodeInput.value.trim();
-                if (code) {
-                    performInventorySearch(code, 'code');
-                }
-            });
-
-            // Listener de mudança no campo de GTIN (Estoque)
-            inventoryGtinInput.addEventListener('change', window.performGtinSearch);
-
-
-            // Lógica do formulário de Cadastro
-            formCadastro.addEventListener('submit', (e) => {
-                e.preventDefault();
-
-                const codigo = productCodeInput.value.trim();
-                const gtin = productGtinInput.value.trim();
-                const descricao = productDescriptionInput.value.trim();
-                const setor = productSectorInput.value;
-                const isUpdate = products.hasOwnProperty(codigo);
-
-                if (gtin && Object.values(products).some(p => p.gtin === gtin && p.codigo !== codigo)) {
-                    showMessage('error', `GTIN **${gtin}** já está associado a outro produto.`, 'cadastro');
-                    return;
-                }
-
-                products[codigo] = { codigo, gtin, descricao, setor };
-                saveToLocalStorage('products', products);
-
-                // Se não for uma atualização, inicializa o estoque com 0
-                if (!isUpdate && !inventory.hasOwnProperty(codigo)) {
-                    inventory[codigo] = { total: 0 };
-                    saveToLocalStorage('inventory', inventory);
-                }
-                
-                showMessage('success', `Produto **${descricao}** ${isUpdate ? 'atualizado' : 'cadastrado'} com sucesso!`, 'cadastro');
-                formCadastro.reset();
-                productSectorInput.value = ""; // Reseta o select
-                updateSearchButtonState();
-            });
-
-            // Lógica do formulário de Estoque
-            formEstoque.addEventListener('submit', (e) => {
-                e.preventDefault();
-
-                const codigo = inventoryCodeInput.value.trim();
-                const quantidade = parseFloat(inventoryQuantityInput.value);
-
-                if (!products.hasOwnProperty(codigo)) {
-                    showMessage('error', 'Código de item não cadastrado. Cadastre o item primeiro na aba "Cadastro".', 'estoque');
-                    return;
-                }
-
-                if (isNaN(quantidade) || quantidade === 0) {
-                    showMessage('error', 'Por favor, insira uma quantidade válida.', 'estoque');
-                    return;
-                }
-                
-                const currentTotal = inventory.hasOwnProperty(codigo) ? inventory[codigo].total : 0;
-                const newTotal = parseFloat((currentTotal + quantidade).toFixed(1)); // Limita a uma casa decimal
-                const product = products[codigo];
-                const type = quantidade > 0 ? 'entrada' : 'saída';
-
-                // Atualiza o inventário
-                inventory[codigo] = { total: newTotal };
-                saveToLocalStorage('inventory', inventory);
-                
-                // Adiciona ao histórico (opcional, para relatórios futuros)
-                if (!inventoryHistory.hasOwnProperty(codigo)) {
-                    inventoryHistory[codigo] = [];
-                }
-                inventoryHistory[codigo].push({
-                    timestamp: new Date().toLocaleString(),
-                    quantidade: quantidade,
-                    total_antes: currentTotal,
-                    total_depois: newTotal,
-                    tipo: type
-                });
-                saveToLocalStorage('inventoryHistory', inventoryHistory);
-
-                // Atualiza a interface
-                inventoryTotalInput.value = newTotal;
-                updateInventoryList();
-
-                showMessage('success', `${quantidade} ${type === 'entrada' ? 'adicionado(s)' : 'subtraído(s)'} de **${product.descricao}**. Total: ${newTotal}`, 'estoque');
-                
-                // Limpa os campos para nova entrada, mantendo o foco
-                inventoryCodeInput.value = '';
-                inventoryGtinInput.value = '';
-                inventoryDescriptionInput.value = '';
-                inventoryQuantityInput.value = '';
-                inventoryTotalInput.value = '';
-                inventoryCodeInput.focus();
-            });
-
-            // Lógica para excluir produtos do Cadastro (Modal de exclusão)
-            btnDeleteProduct.addEventListener('click', () => {
-                const sector = productSectorInput.value;
-                if (!sector) {
-                    showMessage('error', 'Selecione um setor para gerenciar a exclusão.', 'cadastro');
-                    return;
-                }
-
-                const productsInSector = Object.values(products).filter(p => p.setor === sector).sort((a, b) => a.descricao.localeCompare(b.descricao));
-
-                if (productsInSector.length === 0) {
-                    showMessage('error', `Não há produtos cadastrados no setor **${sector}** para exclusão.`, 'cadastro');
-                    return;
-                }
-
-                deleteSectorNameSpan.textContent = sector;
-                formDeleteProducts.innerHTML = '';
-
-                productsInSector.forEach(product => {
-                    const div = document.createElement('div');
-                    div.className = 'delete-list-item';
-                    div.innerHTML = `
-                        <input type="checkbox" id="delete-${product.codigo}" name="product-code" value="${product.codigo}">
-                        <label for="delete-${product.codigo}">**${product.codigo}** | ${product.gtin || '-'} | ${product.descricao} | Estoque: ${inventory[product.codigo]?.total || 0}</label>
-                    `;
-                    formDeleteProducts.appendChild(div);
-                });
-
-                deleteProductModalOverlay.style.display = 'flex';
-            });
-
-            // Lógica de exclusão de produtos selecionados
-            window.deleteSelectedProducts = () => {
-                const checkboxes = formDeleteProducts.querySelectorAll('input[name="product-code"]:checked');
-                const codesToDelete = Array.from(checkboxes).map(cb => cb.value);
-                
-                if (codesToDelete.length === 0) {
-                    showMessage('error', 'Selecione pelo menos um produto para excluir.', 'cadastro');
-                    return;
-                }
-
-                codesToDelete.forEach(code => {
-                    // 1. Remove do cadastro de produtos
-                    delete products[code];
-                    
-                    // 2. Remove do estoque (inventário)
-                    delete inventory[code];
-                    
-                    // 3. Remove do histórico
-                    delete inventoryHistory[code];
-                });
-
-                saveToLocalStorage('products', products);
-                saveToLocalStorage('inventory', inventory);
-                saveToLocalStorage('inventoryHistory', inventoryHistory);
-                
-                closeDeleteModal();
-                showMessage('success', `${codesToDelete.length} produto(s) excluído(s) com sucesso.`, 'cadastro');
-                
-                // Limpa o formulário de cadastro, caso algum item excluído estivesse selecionado
-                formCadastro.reset();
-                productSectorInput.value = "";
-                updateSearchButtonState();
-                updateInventoryList();
-            };
-
-            // Lógica para Relatório de Itens Não Informados (Estoque)
-            openZeroStockBtn.addEventListener('click', () => {
-                const allProducts = Object.values(products);
-                
-                const zeroStockItems = allProducts
-                    .filter(product => {
-                        const total = inventory[product.codigo] ? inventory[product.codigo].total : 0;
-                        return total === 0;
-                    })
-                    .sort((a, b) => a.descricao.localeCompare(b.descricao));
-                
-                if (zeroStockItems.length === 0) {
-                    showMessage('success', 'Todos os itens cadastrados possuem estoque informado.', 'estoque');
-                    return;
-                }
-
-                let resultsHtml = `
-                    <style> 
-                        .result-table { width: 100%; border-collapse: collapse; } 
-                        .result-table th, .result-table td { border: 1px solid #ddd; padding: 8px; text-align: left; cursor: pointer; } 
-                        .result-table th { background-color: #f2f2f2; } 
-                    </style>
-                    <p>Itens cadastrados com estoque atual **igual a zero (0)**. Dê um **duplo clique** para ir para a tela de estoque.</p>
-                    <table class="result-table">
-                        <thead>
-                            <tr>
-                                <th>Código</th>
-                                <th>GTIN</th>
-                                <th>Descrição</th>
-                                <th>Setor</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${zeroStockItems.map(item => `
-                                <tr ondblclick="selectZeroStockItem('${item.codigo}', '${item.descricao.replace(/'/g, "\\'")}', '${item.setor}', '${item.gtin || ''}')">
-                                    <td>${item.codigo}</td>
-                                    <td>${item.gtin || '-'}</td>
-                                    <td>${item.descricao}</td>
-                                    <td>${item.setor}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                `;
-                openModal('Itens com Estoque Zerado', resultsHtml);
-            });
-
-            // Lógica para Relatório de Produtos Cadastrados (Relatórios)
-            openProductReportBtn.addEventListener('click', openSectorModal);
-
-            window.generateProductReport = (sector) => {
-                closeSectorModal();
-                
-                const productsInSector = Object.values(products)
-                    .filter(p => p.setor === sector)
-                    .sort((a, b) => a.descricao.localeCompare(b.descricao));
-
-                if (productsInSector.length === 0) {
-                    showMessage('error', `Não há produtos cadastrados no setor **${sector}**.`, 'relatorio');
-                    return;
-                }
-
-                let reportHtml = `
-                    <style> 
-                        .report-table { width: 100%; border-collapse: collapse; } 
-                        .report-table th, .report-table td { border: 1px solid #ddd; padding: 8px; text-align: left; } 
-                        .report-table th { background-color: #f2f2f2; } 
-                    </style>
-                    <table class="report-table">
-                        <thead>
-                            <tr>
-                                <th>Código</th>
-                                <th>GTIN</th>
-                                <th>Descrição</th>
-                                <th>Setor</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${productsInSector.map(item => `
-                                <tr>
-                                    <td>${item.codigo}</td>
-                                    <td>${item.gtin || '-'}</td>
-                                    <td>${item.descricao}</td>
-                                    <td>${item.setor}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                `;
-                openModal(`Relatório de Produtos Cadastrados - ${sector}`, reportHtml);
-            };
-
-            // Lógica de Importação CSV
-            importCsvBtn.addEventListener('click', openCsvSectorModal);
-
-            window.openFileInput = (sector) => {
-                fileInput.dataset.sector = sector;
-                closeCsvSectorModal();
-                fileInput.click();
-            };
-
-            fileInput.addEventListener('change', (event) => {
-                const file = event.target.files[0];
-                const sectorToImport = fileInput.dataset.sector;
-
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const csvText = e.target.result;
-                    const delimiter = detectDelimiter(csvText);
-                    const lines = csvText.trim().split('\n');
-                    let importCount = 0;
-                    let errorCount = 0;
-                    const invalidLines = [];
-                    
-                    // Pular o cabeçalho
-                    if (lines.length > 0) lines.shift();
-
-                    lines.forEach((line, index) => {
-                        const parts = line.split(delimiter).map(p => p.trim().replace(/"/g, ''));
-                        
-                        if (parts.length >= 2) {
-                            const codigo = parts[0];
-                            let gtin = '';
-                            let descricao = '';
-
-                            if (parts.length === 3) {
-                                gtin = parts[1];
-                                descricao = parts[2];
-
-                                if (isNaN(gtin) || !isNaN(descricao)) {
-                                     gtin = parts[2];
-                                     descricao = parts[1];
-                                }
-                            } else if (parts.length === 2) {
-                                descricao = parts[1];
-                                gtin = '';
-                            }
-
-
-                            if (codigo && descricao) {
-                                if (products.hasOwnProperty(codigo)) {
-                                    products[codigo].gtin = gtin;
-                                    products[codigo].descricao = descricao;
-                                    products[codigo].setor = sectorToImport;
-                                } else {
-                                    products[codigo] = { codigo, gtin, descricao, setor: sectorToImport };
-                                    if (!inventory.hasOwnProperty(codigo)) {
-                                        inventory[codigo] = { total: 0 };
-                                    }
-                                }
-                                importCount++;
-                            } else {
-                                errorCount++;
-                                invalidLines.push(`Linha ${index + 2}: ${line}`);
-                            }
-                        } else {
-                            errorCount++;
-                            invalidLines.push(`Linha ${index + 2}: ${line}`);
-                        }
-                    });
-
-                    saveToLocalStorage('products', products);
-                    saveToLocalStorage('inventory', inventory);
-                    updateInventoryList();
-                    
-                    let message = `Importação concluída: **${importCount} produto(s)** importado(s) ou atualizado(s) no setor **${sectorToImport}**.`;
-                    if (errorCount > 0) {
-                        message += `<br>⚠️ **${errorCount} linha(s) ignorada(s)** devido a formato inválido.`;
-                    }
-                    showMessage(errorCount > 0 ? 'error' : 'success', message, 'cadastro');
-
-                    if (errorCount > 0) {
-                        console.warn("Linhas CSV ignoradas:", invalidLines);
-                    }
-                };
-
-                reader.readAsText(file);
-                event.target.value = ''; // Limpa o input file
-            });
-
-            // Lógica de Exportação CSV (Relatórios)
-            exportCsvBtn.addEventListener('click', () => {
-                const allProducts = Object.values(products);
-                
-                if (allProducts.length === 0) {
-                    showMessage('error', 'Não há produtos cadastrados para exportar.', 'relatorio');
-                    return;
-                }
-
-                let csv = 'Código,GTIN,Descrição,Setor,Estoque Total\n';
-
-                allProducts.forEach(product => {
-                    const total = inventory[product.codigo] ? inventory[product.codigo].total : 0;
-                    csv += `${product.codigo};${product.gtin || ''};"${product.descricao}";${product.setor};${total}\n`;
-                });
-
-                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                const link = document.createElement('a');
-                
-                if (link.download !== undefined) {
-                    const url = URL.createObjectURL(blob);
-                    link.setAttribute('href', url);
-                    link.setAttribute('download', `relatorio_estoque_${new Date().toISOString().slice(0, 10)}.csv`);
-                    link.style.visibility = 'hidden';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    showMessage('success', 'Relatório exportado com sucesso para CSV.', 'relatorio');
-                }
-            });
-
-            // Lógica de Exportação PDF (Relatórios)
-            exportPdfBtn.addEventListener('click', () => {
-                if (!window.jsPDF) {
-                    showMessage('error', 'Aguarde um momento, o script de PDF está sendo carregado ou falhou. Tente novamente em alguns segundos.', 'relatorio');
-                    
-                    const jspdfScript = document.createElement('script');
-                    jspdfScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-                    document.body.appendChild(jspdfScript);
-
-                    const autotableScript = document.createElement('script');
-                    autotableScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js';
-                    document.body.appendChild(autotableScript);
-
-                    autotableScript.onload = () => {
-                        if (window.jsPDF) {
-                            exportToPdfLogic();
-                        } else {
-                            showMessage('error', 'Falha ao carregar a biblioteca de PDF.', 'relatorio');
-                        }
-                    };
-                    return;
-                }
-                exportToPdfLogic();
-            });
-
-            const exportToPdfLogic = () => {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-
-                const allProducts = Object.values(products);
-                
-                if (allProducts.length === 0) {
-                    showMessage('error', 'Não há produtos cadastrados para exportar.', 'relatorio');
-                    return;
-                }
-
-                const data = allProducts.map(product => {
-                    const total = inventory[product.codigo] ? inventory[product.codigo].total : 0;
-                    return [product.codigo, product.gtin || '-', product.descricao, product.setor, total];
-                });
-
-                doc.text("Relatório de Estoque e Produtos", 14, 20);
-
-                doc.autoTable({
-                    head: [['Código', 'GTIN', 'Descrição', 'Setor', 'Estoque Total']],
-                    body: data,
-                    startY: 30,
-                    styles: { fontSize: 8 },
-                    headStyles: { fillColor: [241, 245, 249] },
-                    alternateRowStyles: { fillColor: [255, 255, 255] }
-                });
-
-                doc.save(`relatorio_estoque_${new Date().toISOString().slice(0, 10)}.pdf`);
-                showMessage('success', 'Relatório exportado com sucesso para PDF.', 'relatorio');
-            };
-
-            // Lógica de Limpeza Geral (Gerenciar)
-            clearAllBtn.addEventListener('click', () => {
-                const confirmed = confirm("TEM CERTEZA? Esta ação apagará TODOS os dados de ESTOQUE e HISTÓRICO de inventário (mantendo os produtos cadastrados). Esta ação é irreversível.");
-                
-                if (confirmed) {
-                    inventory = {};
-                    inventoryHistory = {};
-                    saveToLocalStorage('inventory', inventory);
-                    saveToLocalStorage('inventoryHistory', inventoryHistory);
-                    updateInventoryList(); 
-                    showMessage('success', 'Todos os itens do estoque e histórico foram apagados.', 'gerenciar');
-                }
-            });
-
-            // Lógica de Apagar Todos Itens Cadastrados (Gerenciar - Requer confirmação por texto)
-            clearProductsBySectorBtn.addEventListener('click', () => {
-                const confirmText = productDescriptionInput.value.trim().toUpperCase();
-                
-                if (confirmText === 'APAGAR TUDO') { 
-                    const productsToDelete = Object.keys(products);
-                    
-                    if (productsToDelete.length > 0) {
-                        const deletedCount = productsToDelete.length;
-
-                        products = {};
-                        inventory = {};
-                        inventoryHistory = {};
-
-                        saveToLocalStorage('products', products);
-                        saveToLocalStorage('inventory', inventory);
-                        saveToLocalStorage('inventoryHistory', inventoryHistory);
-                        
-                        updateInventoryList();
-                        showMessage('success', `${deletedCount} produto(s) foram apagados com sucesso!`, 'gerenciar');
-                    } else {
-                        showMessage('error', `Não há produtos cadastrados para apagar.`, 'gerenciar');
-                    }
-
-                    productDescriptionInput.value = ''; // Limpa o campo de segurança
-                } else {
-                    showMessage('error', `Para apagar **TODOS** os produtos, digite 'APAGAR TUDO' no campo de descrição de produto na aba de Cadastro e clique neste botão.`, 'gerenciar');
-                }
-            });
-
-            // Inicialização da página
-            document.querySelector('.tab-content[data-tab="estoque"]').classList.add('active');
-            filterButtons.forEach(btn => btn.classList.remove('active'));
-            acougueFilterBtn.classList.add('active');
-            currentFilter = 'Açougue';
-            updateInventoryList();
-            updateSearchButtonState();
         });
-    </script>
-    
-    <script src="html5-qrcode.min.js"></script> 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    };
+
+    // --- PRODUTOS ---
+    function saveProduct() {
+        const code = document.getElementById('product-code').value.trim();
+        const gtin = document.getElementById('product-gtin').value.trim();
+        const name = document.getElementById('product-name').value.trim();
+        const description = document.getElementById('product-description').value.trim();
+
+        if (!code || !name) {
+            alert('Código e Nome do produto são obrigatórios!');
+            return;
+        }
+
+        const existingIndex = db.products.findIndex(p => p.code === code);
+        const productData = { code, gtin, name, description };
+
+        if (existingIndex >= 0) {
+            db.products[existingIndex] = productData;
+        } else {
+            db.products.push(productData);
+        }
+
+        saveData();
+        resetProductForm();
+        renderProductsTable();
+        alert('Produto salvo com sucesso!');
+    }
+
+    function resetProductForm() {
+        document.getElementById('product-code').value = '';
+        document.getElementById('product-gtin').value = '';
+        document.getElementById('product-name').value = '';
+        document.getElementById('product-description').value = '';
+    }
+
+    function renderProductsTable() {
+        const tbody = document.getElementById('products-table-body');
+        tbody.innerHTML = '';
+
+        db.products.forEach((p, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${p.code}</td>
+                <td>${p.gtin || '-'}</td>
+                <td>${p.name}</td>
+                <td>
+                    <button class="btn btn-secondary" onclick="editProduct(${index})">Editar</button>
+                    <button class="btn btn-danger" onclick="deleteProduct(${index})">Excluir</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function editProduct(index) {
+        const p = db.products[index];
+        document.getElementById('product-code').value = p.code;
+        document.getElementById('product-gtin').value = p.gtin || '';
+        document.getElementById('product-name').value = p.name;
+        document.getElementById('product-description').value = p.description || '';
+    }
+
+    function deleteProduct(index) {
+        if (confirm('Deseja excluir este produto?')) {
+            db.products.splice(index, 1);
+            saveData();
+            renderProductsTable();
+        }
+    }
+
+    // --- LOCAIS E SUBLOCAIS ---
+    function saveLocation() {
+        const name = document.getElementById('new-location-name').value.trim();
+        if (!name) return alert('Digite o nome do local');
+
+        db.locations.push({ id: Date.now().toString(), name });
+        saveData();
+        document.getElementById('new-location-name').value = '';
+        loadParentLocationSelect();
+        renderLocationsList();
+    }
+
+    function saveSublocation() {
+        const parentId = document.getElementById('parent-location-select').value;
+        const name = document.getElementById('new-sublocation-name').value.trim();
+
+        if (!parentId || !name) return alert('Selecione o local pai e digite o nome do sublocal');
+
+        db.sublocations.push({ id: Date.now().toString(), parentId, name });
+        saveData();
+        document.getElementById('new-sublocation-name').value = '';
+        renderLocationsList();
+    }
+
+    function loadParentLocationSelect() {
+        const select = document.getElementById('parent-location-select');
+        select.innerHTML = '<option value="">Selecione...</option>';
+        db.locations.forEach(loc => {
+            select.innerHTML += `<option value="${loc.id}">${loc.name}</option>`;
+        });
+    }
+
+    function renderLocationsList() {
+        const container = document.getElementById('locations-list');
+        container.innerHTML = '';
+
+        db.locations.forEach(loc => {
+            const subs = db.sublocations.filter(s => s.parentId === loc.id);
+            let subsHtml = subs.map(s => `<li>${s.name}</li>`).join('');
+            
+            container.innerHTML += `
+                <div style="margin-bottom: 12px; padding: 10px; background: #f8fafc; border-radius: 6px;">
+                    <strong>📍 ${loc.name}</strong>
+                    <ul style="margin: 4px 0 0 20px; padding: 0;">${subsHtml || '<li style="color:#94a3b8">Nenhum sublocal</li>'}</ul>
+                </div>
+            `;
+        });
+    }
+
+    // --- ESTOQUE E MOVIMENTAÇÃO ---
+    function loadLocationSelects() {
+        const locSelect = document.getElementById('inventory-location');
+        locSelect.innerHTML = '<option value="">Selecione...</option>';
+        db.locations.forEach(loc => {
+            locSelect.innerHTML += `<option value="${loc.id}">${loc.name}</option>`;
+        });
+        updateSublocationsSelect('inventory-location', 'inventory-sublocation');
+    }
+
+    function updateSublocationsSelect(locSelectId, sublocSelectId) {
+        const locId = document.getElementById(locSelectId).value;
+        const subSelect = document.getElementById(sublocSelectId);
+        subSelect.innerHTML = '<option value="">Selecione...</option>';
+
+        if (!locId) return;
+
+        const subs = db.sublocations.filter(s => s.parentId === locId);
+        subs.forEach(s => {
+            subSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+        });
+    }
+
+    function performGtinSearch() {
+        const gtin = document.getElementById('inventory-gtin').value.trim();
+        if (!gtin) return;
+
+        const product = db.products.find(p => p.gtin === gtin);
+        if (product) {
+            document.getElementById('inventory-item-code').value = product.code;
+            document.getElementById('inventory-product-name').value = product.name;
+        } else {
+            document.getElementById('inventory-product-name').value = 'Produto não encontrado';
+        }
+    }
+
+    document.getElementById('inventory-gtin').addEventListener('blur', performGtinSearch);
+
+    function saveInventoryMovement() {
+        const code = document.getElementById('inventory-item-code').value.trim();
+        const qty = parseInt(document.getElementById('inventory-quantity').value) || 0;
+        const type = document.getElementById('inventory-type').value;
+        const locId = document.getElementById('inventory-location').value;
+        const sublocId = document.getElementById('inventory-sublocation').value;
+
+        if (!code || qty <= 0 || !locId) {
+            alert('Preencha o item, quantidade e local!');
+            return;
+        }
+
+        const product = db.products.find(p => p.code === code);
+        const productName = product ? product.name : 'Não Cadastrado';
+
+        let existing = db.inventory.find(i => i.code === code && i.locId === locId && i.sublocId === sublocId);
+
+        if (existing) {
+            if (type === 'entry') existing.qty += qty;
+            else existing.qty -= qty;
+        } else {
+            if (type === 'exit') return alert('Não há saldo para saída neste local!');
+            db.inventory.push({ code, productName, locId, sublocId, qty });
+        }
+
+        saveData();
+        resetInventoryForm();
+        renderInventoryTable();
+        alert('Movimentação registrada!');
+    }
+
+    function resetInventoryForm() {
+        document.getElementById('inventory-item-code').value = '';
+        document.getElementById('inventory-gtin').value = '';
+        document.getElementById('inventory-product-name').value = '';
+        document.getElementById('inventory-quantity').value = '1';
+        document.getElementById('inventory-location').value = '';
+        document.getElementById('inventory-sublocation').value = '';
+    }
+
+    function renderInventoryTable() {
+        const tbody = document.getElementById('inventory-table-body');
+        const filter = document.getElementById('inventory-search').value.toLowerCase();
+        tbody.innerHTML = '';
+
+        db.inventory.filter(item => 
+            item.code.toLowerCase().includes(filter) || 
+            item.productName.toLowerCase().includes(filter)
+        ).forEach(item => {
+            const loc = db.locations.find(l => l.id === item.locId);
+            const subloc = db.sublocations.find(s => s.id === item.sublocId);
+            const locName = loc ? loc.name : '-';
+            const sublocName = subloc ? subloc.name : '-';
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${item.code}</td>
+                <td>${item.productName}</td>
+                <td>${locName} / ${sublocName}</td>
+                <td><strong>${item.qty}</strong></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function clearAllData() {
+        if (confirm('ATENÇÃO: Isso apagará todos os produtos, locais e estoque cadastrados neste aparelho. Continuar?')) {
+            localStorage.clear();
+            db = { products: [], locations: [], sublocations: [], inventory: [] };
+            alert('Todos os dados foram apagados.');
+            location.reload();
+        }
+    }
+
+    // Inicialização
+    loadLocationSelects();
+    renderInventoryTable();
+</script>
 </body>
 </html>
