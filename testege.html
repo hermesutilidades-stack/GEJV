@@ -423,7 +423,7 @@
                         </div>
                     </form>
                     <div class="button-group" style="margin-top: 16px;">
-                        <input type="file" id="file-input" accept=".csv, .txt, text/plain, text/csv">
+                        <input type="file" id="file-input" accept=".csv, .txt, text/plain, text/csv" style="display: none;">
                         <button type="button" class="btn btn-secondary btn-full" id="btn-import-csv">Importar CSV</button>
                     </div>
                 </div>
@@ -1171,6 +1171,17 @@
                 reader.readAsText(file);
             });
 
+            // Função auxiliar para converter notação científica (ex: 7,89806E+12 ou 7.89806E+12) para GTIN
+            const parseScientificGtin = (val) => {
+                if (!val) return '';
+                let cleanVal = val.trim().replace(',', '.'); 
+                if (cleanVal.toUpperCase().includes('E+')) {
+                    let num = Number(cleanVal);
+                    return isNaN(num) ? '' : BigInt(Math.round(num)).toString();
+                }
+                return cleanVal.replace(/\D/g, '');
+            };
+
             const processCsvData = (csvText, sector) => {
                 const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l !== '');
                 if (lines.length === 0) {
@@ -1180,18 +1191,38 @@
                 }
 
                 let importedCount = 0;
+
                 lines.forEach((line, index) => {
-                    const cols = line.split(/;|,|\t/).map(c => c.replace(/"/g, '').trim());
-                    if (cols.length < 2) return;
+                    // Detecta se o separador principal do arquivo é ponto e vírgula ou tabulação para não quebrar na vírgula do número
+                    let delimiter = ';';
+                    if (line.includes('\t')) delimiter = '\t';
+                    else if (line.includes(';') || !line.includes(',')) delimiter = ';';
 
-                    let code = cols[0].replace(/\D/g, ''); 
-                    let description = cols[1];
-                    let gtin = cols[2] ? cols[2].replace(/\D/g, '') : '';
+                    const cols = line.split(delimiter).map(c => c.replace(/"/g, '').trim());
+                    if (cols.length < 1) return;
 
-                    if (index === 0 && (code.toLowerCase().includes('cod') || description.toLowerCase().includes('desc'))) return;
+                    // Coluna A (1ª): Código do Item
+                    let code = cols[0] ? cols[0].replace(/\D/g, '') : ''; 
+                    
+                    // Coluna B (2ª): GTIN
+                    let gtin = cols[1] ? parseScientificGtin(cols[1]) : '';
+                    
+                    // Coluna C (3ª): Descrição do Item
+                    let description = cols[2] ? cols[2].trim() : '';
 
+                    // Ignora o cabeçalho caso exista
+                    if (index === 0 && (code.toLowerCase().includes('cod') || description.toLowerCase().includes('desc'))) {
+                        return;
+                    }
+
+                    // Importa se possuir Código e Descrição (GTIN é opcional)
                     if (code && description) {
-                        products[code] = { codigo: code, gtin: gtin, descricao: description, setor: sector };
+                        products[code] = { 
+                            codigo: code, 
+                            gtin: gtin, 
+                            descricao: description, 
+                            setor: sector 
+                        };
                         importedCount++;
                     }
                 });
