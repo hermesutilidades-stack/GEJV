@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciador de Estoque e Produtos</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <!-- BIBLIOTECA DA CÂMERA ATUALIZADA E ESTÁVEL -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script> 
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -15,7 +16,7 @@
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            min-height: 100vh;
+            min-height: 10vh;
         }
         .container {
             width: 100%;
@@ -125,6 +126,10 @@
         .form-group {
             margin-bottom: 16px;
         }
+        .input-group {
+            display: flex;
+            align-items: center;
+        }
         .form-group input, .form-group select {
             width: 100%;
             padding: 10px;
@@ -133,8 +138,31 @@
             font-size: 1rem;
             box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
             background-color: #fff;
-            box-sizing: border-box;
         }
+        .input-group input {
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+            flex-grow: 1;
+        }
+        .barcode-btn {
+            padding: 8px 12px;
+            border: 1px solid #cbd5e1;
+            border-left: none;
+            background-color: #e2e8f0;
+            color: #334155;
+            border-radius: 6px;
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+            cursor: pointer;
+            font-size: 1.2rem;
+            line-height: 1;
+            transition: background-color 0.2s;
+            height: 42px;
+        }
+        .barcode-btn:hover {
+            background-color: #cbd5e1;
+        }
+
         .button-group {
             display: flex;
             gap: 12px;
@@ -173,12 +201,6 @@
         .btn-full {
             width: 100%;
             margin-top: 16px;
-        }
-        .btn-camera {
-            background-color: #28a745;
-            color: #fff;
-            margin-top: 6px;
-            width: 100%;
         }
         .message {
             padding: 12px;
@@ -239,6 +261,13 @@
             font-weight: 600;
             color: #1e293b;
         }
+        .btn-primary[disabled], .btn-secondary[disabled] {
+            cursor: not-allowed;
+            background-color: #f1f1f1 !important;
+            color: #b0b0b0 !important;
+            border: 1px solid #ddd !important;
+            box-shadow: none !important;
+        }
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -250,7 +279,9 @@
             justify-content: center;
             align-items: center;
             z-index: 1000;
+            animation: fadeIn 0.3s ease-in-out;
         }
+
         .modal-content {
             background-color: #fff;
             padding: 24px;
@@ -261,7 +292,14 @@
             max-height: 90vh;
             overflow-y: auto;
             position: relative;
+            animation: slideIn 0.3s ease-in-out;
         }
+        
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
         .modal-header {
             display: flex;
             justify-content: space-between;
@@ -272,30 +310,61 @@
             margin: 0;
             font-size: 1.5rem;
         }
+
         .close-button {
             background: none;
             border: none;
             font-size: 1.5rem;
             cursor: pointer;
             color: #999;
+            transition: color 0.2s;
         }
-        #interactive.viewport {
-            width: 100%;
-            height: 300px;
-            position: relative;
-            overflow: hidden;
+        .close-button:hover {
+            color: #333;
+        }
+
+        #relatorio .button-group .btn {
+            padding: 8px 12px;
+            font-size: 0.9rem;
+        }
+        
+        .delete-list-container {
+            margin-top: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
             border-radius: 8px;
-            background: #000;
+            padding: 8px;
         }
-        #interactive.viewport canvas, #interactive.viewport video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+        .delete-list-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid #e2e8f0;
         }
-        canvas.drawingBuffer {
-            position: absolute;
-            top: 0;
-            left: 0;
+        .delete-list-item:last-child {
+            border-bottom: none;
+        }
+        .delete-list-item input[type="checkbox"] {
+            margin-right: 12px;
+        }
+
+        @media (max-width: 600px) {
+            .tab-button {
+                font-size: 0.8rem;
+                padding: 10px 8px;
+            }
+            #relatorio .button-group,
+            .filter-buttons {
+                flex-direction: column;
+                gap: 8px;
+            }
+            #relatorio .button-group .btn,
+            .filter-buttons .toggle-button {
+                width: 100%;
+                font-size: 0.85rem;
+                padding: 10px 12px;
+            }
         }
     </style>
 </head>
@@ -326,12 +395,14 @@
                     <form id="form-cadastro">
                         <div class="form-group">
                             <label for="product-code">Código do Item</label>
-                            <input type="number" id="product-code" required step="1">
+                            <input type="number" id="product-code" required step="1" onkeydown="return event.key !== 'e' && event.key !== 'E'">
                         </div>
                         <div class="form-group">
-                            <label for="product-gtin">GTIN (Código de Barras)</label>
-                            <input type="text" id="product-gtin" placeholder="Ex: 7891234567890">
-                            <button type="button" class="btn btn-camera" onclick="openCameraScanner('product-gtin')">📷 Escanear Câmera</button>
+                            <label for="product-gtin">GTIN (Código de Barras) - Opcional</label>
+                            <div class="input-group">
+                                <input type="number" id="product-gtin" step="1" onkeydown="return event.key !== 'e' && event.key !== 'E'">
+                                <button type="button" class="barcode-btn" title="Ler Código de Barras" onclick="startBarcodeScan('product-gtin', 'cadastro')">&#x2328;</button>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="product-description">Descrição do Item</label>
@@ -352,7 +423,7 @@
                         </div>
                     </form>
                     <div class="button-group" style="margin-top: 16px;">
-                        <input type="file" id="file-input" accept=".csv, .txt, text/plain, text/csv">
+                        <input type="file" id="file-input" accept=".csv" style="display: none;">
                         <button type="button" class="btn btn-secondary btn-full" id="btn-import-csv">Importar CSV</button>
                     </div>
                 </div>
@@ -363,21 +434,29 @@
                     <div class="card-header">
                         <h2>Gerenciamento de Estoque</h2>
                         <div class="filter-buttons">
-                            <button class="toggle-button" data-filter="Açougue">Açougue</button>
-                            <button class="toggle-button" data-filter="Hortifruti">Hortifruti</button>
-                            <button class="toggle-button" data-filter="Outros">Outros</button>
+                            <button class="toggle-button" data-filter="Açougue">
+                                Açougue
+                            </button>
+                            <button class="toggle-button" data-filter="Hortifruti">
+                                Hortifruti
+                            </button>
+                            <button class="toggle-button" data-filter="Outros">
+                                Outros
+                            </button>
                         </div>
                     </div>
                     <div id="message-estoque" class="message"></div>
                     <form id="form-estoque">
                         <div class="form-group">
                             <label for="inventory-code">Código do Item</label>
-                            <input type="number" id="inventory-code" required step="1">
+                            <input type="number" id="inventory-code" required step="1" onkeydown="return event.key !== 'e' && event.key !== 'E'" onchange="this.value.trim() ? document.getElementById('inventory-quantity').focus() : document.getElementById('inventory-description').focus();">
                         </div>
                         <div class="form-group">
-                            <label for="inventory-gtin">GTIN (Código de Barras)</label>
-                            <input type="text" id="inventory-gtin" placeholder="Passe o leitor ou digite o GTIN">
-                            <button type="button" class="btn btn-camera" onclick="openCameraScanner('inventory-gtin')">📷 Escanear Câmera</button>
+                            <label for="inventory-gtin">GTIN (Código de Barras) - Opcional</label>
+                            <div class="input-group">
+                                <input type="number" id="inventory-gtin" step="1" onkeydown="return event.key !== 'e' && event.key !== 'E'">
+                                <button type="button" class="barcode-btn" title="Ler Código de Barras" onclick="startBarcodeScan('inventory-gtin', 'estoque')">&#x2328;</button>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="inventory-description">Descrição do Item</label>
@@ -416,7 +495,6 @@
                         <thead>
                             <tr>
                                 <th>Código</th>
-                                <th>GTIN</th>
                                 <th>Descrição</th>
                                 <th>Setor</th>
                                 <th>Total</th>
@@ -431,7 +509,7 @@
                 <div class="card">
                     <h2>Gerenciar Estoque</h2>
                     <div id="message-gerenciar" class="message"></div>
-                    <p>Use as ferramentas abaixo para gerenciar seu estoque de forma geral.</p>
+                    <p>Use as ferramentas abaixo para gerenciar seu estoque de forma geral. Cuidado, esta ação não pode ser desfeita.</p>
                     <button id="clear-all" class="btn btn-danger btn-full">Apagar todos os itens do estoque</button>
                     <button id="clear-products-by-sector-btn" class="btn btn-danger btn-full" style="margin-top: 10px;">Apagar todos itens cadastrados</button>
                 </div>
@@ -439,206 +517,401 @@
         </div>
     </div>
 
-    <!-- Modal Câmera Scanner Original -->
-    <div id="camera-modal" class="modal-overlay">
-        <div class="modal-content" style="max-width: 500px;">
+    <div id="report-modal-overlay" class="modal-overlay">
+        <div class="modal-content">
             <div class="modal-header">
-                <h2>Leitor de Código de Barras</h2>
-                <button class="close-button" onclick="closeCameraScanner()">&times;</button>
+                <h2 id="modal-title"></h2>
+                <button class="close-button" onclick="closeModal()">&times;</button>
             </div>
-            <div id="interactive" class="viewport"></div>
-            <button class="btn btn-secondary btn-full" onclick="closeCameraScanner()" style="margin-top: 15px;">Fechar</button>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <div id="delete-product-modal-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Excluir Produtos do Setor</h2>
+                <button class="close-button" onclick="closeDeleteModal()">&times;</button>
+            </div>
+            <p>Selecione os produtos que deseja excluir do setor <strong><span id="delete-sector-name"></span></strong>. Esta ação é irreversível.</p>
+            <div class="delete-list-container">
+                <form id="form-delete-products"></form>
+            </div>
+            <div class="button-group" style="justify-content: flex-end;">
+                <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Cancelar</button>
+                <button type="button" class="btn btn-danger" onclick="deleteSelectedProducts()">Excluir Selecionados</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="sector-select-modal-overlay" class="modal-overlay">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <div class="modal-header">
+                <h2 id="sector-select-title">Selecione o setor para o relatório</h2>
+                <button class="close-button" onclick="closeSectorModal()">&times;</button>
+            </div>
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="generateProductReport('Açougue');">Açougue</button>
+                <button class="btn btn-secondary" onclick="generateProductReport('Hortifruti');">Hortifruti</button>
+                <button class="btn btn-secondary" onclick="generateProductReport('Outros');">Outros</button>
+            </div>
         </div>
     </div>
 
     <div id="csv-sector-modal-overlay" class="modal-overlay">
         <div class="modal-content" style="max-width: 400px; text-align: center;">
             <div class="modal-header">
-                <h2>Selecione o setor para o CSV</h2>
+                <h2 id="csv-sector-title">Selecione o setor para o CSV</h2>
                 <button class="close-button" onclick="closeCsvSectorModal()">&times;</button>
             </div>
             <div class="button-group">
-                <button class="btn btn-primary" onclick="triggerFileInput('Açougue');">Açougue</button>
-                <button class="btn btn-secondary" onclick="triggerFileInput('Hortifruti');">Hortifruti</button>
-                <button class="btn btn-secondary" onclick="triggerFileInput('Outros');">Outros</button>
+                <button class="btn btn-primary" onclick="openFileInput('Açougue');">Açougue</button>
+                <button class="btn btn-secondary" onclick="openFileInput('Hortifruti');">Hortifruti</button>
+                <button class="btn btn-secondary" onclick="openFileInput('Outros');">Outros</button>
             </div>
         </div>
     </div>
 
+    <div id="scanner-modal-overlay" class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 id="scanner-title">Leitor de Código de Barras</h2>
+                <button class="close-button" onclick="stopAndCloseScanner()">&times;</button>
+            </div>
+            <div id="reader-container" style="width: 100%;"></div> 
+            <div id="scanner-result" style="margin-top: 15px; font-weight: bold; color: #007bff; text-align: center;"></div>
+            <p style="font-size: 0.75rem; color: #64748b; text-align: center; margin-top: 10px;">
+                *É necessário HTTPS e permissão de câmera para funcionar.
+            </p>
+        </div>
+    </div>
+
     <script>
-        let currentScanTargetId = null;
+        let html5QrCode = null;
+        let currentInputId = null;
+        const scannerModalOverlay = document.getElementById('scanner-modal-overlay');
 
-        function openCameraScanner(targetId) {
-            currentScanTargetId = targetId;
-            document.getElementById('camera-modal').style.display = 'flex';
-
-            Quagga.init({
-                inputStream: {
-                    name: "Live",
-                    type: "LiveStream",
-                    target: document.querySelector('#interactive'),
-                    constraints: {
-                        facingMode: "environment"
-                    }
-                },
-                locator: {
-                    patchSize: "medium",
-                    halfSample: true
-                },
-                numOfWorkers: 2,
-                decoder: {
-                    readers: ["ean_reader", "ean_8_reader", "code_128_reader", "upc_reader"]
-                },
-                locate: true
-            }, function(err) {
-                if (err) {
-                    alert("Erro ao iniciar a câmera: " + err);
-                    closeCameraScanner();
-                    return;
-                }
-                Quagga.start();
-            });
-
-            Quagga.onProcessed(function(result) {
-                var drawingCtx = Quagga.canvas.ctx.overlay,
-                    drawingCanvas = Quagga.canvas.dom.overlay;
-
-                if (result) {
-                    if (result.boxes) {
-                        drawingCtx.clearRect(0, 0, parseInt(drawingCanvas.getAttribute("width")), parseInt(drawingCanvas.getAttribute("height")));
-                        result.boxes.filter(function(box) {
-                            return box !== result.box;
-                        }).forEach(function(box) {
-                            Quagga.canvas.drawPath(box, {x: 0, y: 1}, drawingCtx, {color: "green", lineWidth: 2});
-                        });
-                    }
-
-                    if (result.box) {
-                        Quagga.canvas.drawPath(result.box, {x: 0, y: 1}, drawingCtx, {color: "#00F", lineWidth: 2});
-                    }
-
-                    if (result.codeResult && result.codeResult.code) {
-                        Quagga.canvas.drawPath(result.line, {x: 'x', y: 'y'}, drawingCtx, {color: 'red', lineWidth: 3});
-                    }
-                }
-            });
-
-            Quagga.onDetected(onBarcodeDetected);
-        }
-
-        function onBarcodeDetected(result) {
-            var code = result.codeResult.code;
-            if (code && currentScanTargetId) {
-                const targetInput = document.getElementById(currentScanTargetId);
-                targetInput.value = code;
-                closeCameraScanner();
-
-                if (currentScanTargetId === 'inventory-gtin') {
-                    const event = new KeyboardEvent('keydown', { key: 'Enter' });
-                    targetInput.dispatchEvent(event);
-                }
+        window.stopAndCloseScanner = () => {
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().then(() => {
+                    scannerModalOverlay.style.display = 'none';
+                    html5QrCode.clear();
+                }).catch(err => {
+                    console.error("Erro ao parar o scanner:", err);
+                    scannerModalOverlay.style.display = 'none';
+                    html5QrCode.clear();
+                });
+            } else {
+                if (html5QrCode) html5QrCode.clear();
+                scannerModalOverlay.style.display = 'none';
             }
-        }
+        };
 
-        function closeCameraScanner() {
-            Quagga.offDetected(onBarcodeDetected);
-            Quagga.stop();
-            document.getElementById('camera-modal').style.display = 'none';
-        }
+        window.startBarcodeScan = (inputId, tabId) => {
+            currentInputId = inputId;
+            const readerContainerId = "reader-container";
+            const scannerResultDiv = document.getElementById('scanner-result');
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const saveToLocalStorage = (key, data) => localStorage.setItem(key, JSON.stringify(data));
-            const loadFromLocalStorage = (key) => {
-                const data = localStorage.getItem(key);
-                return data ? JSON.parse(data) : {};
+            if (html5QrCode) {
+                html5QrCode.clear();
+            }
+            
+            html5QrCode = new Html5Qrcode(readerContainerId);
+
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 100 },
+                disableFlip: false,
             };
 
-            let products = loadFromLocalStorage('products');
-            let inventory = loadFromLocalStorage('inventory');
+            const onScanSuccess = (decodedText, decodedResult) => {
+                document.getElementById(currentInputId).value = decodedText;
+                
+                scannerResultDiv.textContent = `Sucesso: ${decodedText}`;
+                
+                if (currentInputId === 'inventory-gtin' && typeof window.performGtinSearch === 'function') {
+                    window.performGtinSearch(); 
+                }
+
+                setTimeout(() => {
+                    stopAndCloseScanner();
+                }, 500); 
+            };
+
+            const onScanError = (errorMessage) => {
+            };
+
+            document.getElementById('scanner-title').textContent = "Leitor de Código de Barras";
+            scannerResultDiv.textContent = 'Aguardando leitura...';
+            scannerModalOverlay.style.display = 'flex';
+
+            html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                onScanSuccess,
+                onScanError
+            ).catch(err => {
+                scannerResultDiv.textContent = `Erro: ${err.message}. Verifique a permissão da câmera e se o site está em HTTPS.`;
+                
+                setTimeout(() => {
+                    stopAndCloseScanner();
+                    if (typeof showMessage === 'function') {
+                        showMessage('error', 'Falha ao iniciar o leitor de código de barras. Verifique HTTPS e permissões.', tabId);
+                    }
+                }, 4000); 
+            });
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const saveToLocalStorage = (key, data) => {
+                try {
+                    localStorage.setItem(key, JSON.stringify(data));
+                } catch (e) {
+                    console.error("Erro ao salvar no Local Storage: ", e);
+                }
+            };
+
+            const loadFromLocalStorage = (key, defaultValue) => {
+                try {
+                    const data = localStorage.getItem(key);
+                    return data ? JSON.parse(data) : defaultValue;
+                } catch (e) {
+                    console.error("Erro ao carregar do Local Storage: ", e);
+                    return defaultValue;
+                }
+            };
+
+            let products = loadFromLocalStorage('products', {}); 
+            let inventory = loadFromLocalStorage('inventory', {});
+            let inventoryHistory = loadFromLocalStorage('inventoryHistory', {});
             let currentFilter = 'Açougue';
-            let selectedImportSector = '';
+            let selectedItemCode = null;
 
             const tabButtons = document.querySelectorAll('.tab-button');
             const tabContents = document.querySelectorAll('.tab-content');
             const filterButtons = document.querySelectorAll('.toggle-button');
-
+            const acougueFilterBtn = document.querySelector('[data-filter="Açougue"]');
+            const importCsvBtn = document.getElementById('btn-import-csv');
             const fileInput = document.getElementById('file-input');
-            const btnImportCsv = document.getElementById('btn-import-csv');
+            const clearProductsBySectorBtn = document.getElementById('clear-products-by-sector-btn');
+
+            const formCadastro = document.getElementById('form-cadastro');
+            const btnSearchProduct = document.getElementById('btn-search-product');
+            const btnDeleteProduct = document.getElementById('btn-delete-product');
+            const formEstoque = document.getElementById('form-estoque');
+            const exportCsvBtn = document.getElementById('export-csv');
+            const exportPdfBtn = document.getElementById('export-pdf');
+            const openZeroStockBtn = document.getElementById('open-zero-stock');
+            const clearAllBtn = document.getElementById('clear-all');
+            const openProductReportBtn = document.getElementById('open-product-report');
+            
+            const reportModalOverlay = document.getElementById('report-modal-overlay');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+            const deleteProductModalOverlay = document.getElementById('delete-product-modal-overlay');
+            const deleteSectorNameSpan = document.getElementById('delete-sector-name');
+            const formDeleteProducts = document.getElementById('form-delete-products');
+            const sectorSelectModalOverlay = document.getElementById('sector-select-modal-overlay');
             const csvSectorModalOverlay = document.getElementById('csv-sector-modal-overlay');
 
             const inventoryCodeInput = document.getElementById('inventory-code');
-            const inventoryGtinInput = document.getElementById('inventory-gtin');
+            const inventoryGtinInput = document.getElementById('inventory-gtin'); 
             const inventoryDescriptionInput = document.getElementById('inventory-description');
             const inventoryQuantityInput = document.getElementById('inventory-quantity');
             const inventoryTotalInput = document.getElementById('inventory-total');
-
             const productCodeInput = document.getElementById('product-code');
-            const productGtinInput = document.getElementById('product-gtin');
+            const productGtinInput = document.getElementById('product-gtin'); 
             const productDescriptionInput = document.getElementById('product-description');
+            const productSectorInput = document.getElementById('product-sector');
 
-            const showMessage = (type, content, tabId) => {
-                const messageDiv = document.getElementById(`message-${tabId}`);
-                if (messageDiv) {
-                    messageDiv.innerHTML = content;
-                    messageDiv.className = `message ${type}`;
-                    messageDiv.style.display = 'block';
-                    setTimeout(() => { messageDiv.style.display = 'none'; }, 5000);
+            inventoryQuantityInput.addEventListener('input', (event) => {
+                let value = event.target.value;
+                const parts = value.split('.');
+                if (parts.length > 1) {
+                    parts[1] = parts[1].slice(0, 1);
+                    event.target.value = parts.join('.');
                 }
+            });
+            
+            function detectDelimiter(csvText) {
+                const commonDelimiters = [',', ';', '\t', '|'];
+                const lines = csvText.trim().split('\n');
+
+                if (lines.length === 0) return ',';
+
+                const firstLine = lines[0];
+                let bestDelimiter = ',';
+                let maxCount = 0;
+
+                commonDelimiters.forEach(delimiter => {
+                    const count = (firstLine.match(new RegExp('\\' + delimiter, 'g')) || []).length;
+
+                    if (count > maxCount) {
+                        maxCount = count;
+                        bestDelimiter = delimiter;
+                    }
+                });
+
+                if (firstLine.includes(';') && maxCount === 0) {
+                    return ';';
+                }
+                
+                if (maxCount > 0) {
+                    return bestDelimiter;
+                }
+
+                return ',';
+            }
+
+            const openModal = (title, content) => {
+                modalTitle.textContent = title;
+                modalBody.innerHTML = content;
+                reportModalOverlay.style.display = 'flex';
             };
 
-            btnImportCsv.addEventListener('click', () => {
+            window.closeModal = () => {
+                reportModalOverlay.style.display = 'none';
+            };
+            
+            const openSectorModal = () => {
+                sectorSelectModalOverlay.style.display = 'flex';
+            };
+            
+            window.closeSectorModal = () => {
+                sectorSelectModalOverlay.style.display = 'none';
+            };
+
+            const openCsvSectorModal = () => {
                 csvSectorModalOverlay.style.display = 'flex';
-            });
+            };
 
             window.closeCsvSectorModal = () => {
                 csvSectorModalOverlay.style.display = 'none';
             };
 
-            window.triggerFileInput = (sector) => {
-                selectedImportSector = sector;
-                closeCsvSectorModal();
-                fileInput.click();
+            window.closeDeleteModal = () => {
+                deleteProductModalOverlay.style.display = 'none';
+            };
+            
+            window.selectZeroStockItem = (code, description, gtin) => {
+                closeModal();
+                inventoryCodeInput.value = code;
+                inventoryGtinInput.value = gtin || ''; 
+                inventoryDescriptionInput.value = description;
+                inventoryTotalInput.value = 0; 
+                inventoryQuantityInput.value = '';
+                inventoryQuantityInput.focus();
             };
 
-            fileInput.addEventListener('change', (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
+            window.selectFoundItem = (code, description, total, gtin) => {
+                closeModal();
+                inventoryCodeInput.value = code;
+                inventoryGtinInput.value = gtin || ''; 
+                inventoryDescriptionInput.value = description;
+                inventoryTotalInput.value = total;
+                inventoryQuantityInput.value = '';
+                inventoryQuantityInput.focus();
+            };
 
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    processCsvData(e.target.result, selectedImportSector);
-                };
-                reader.readAsText(file);
-            });
+            window.selectProductItem = (code, description, sector, gtin) => {
+                closeModal();
+                productCodeInput.value = code;
+                productGtinInput.value = gtin || ''; 
+                productDescriptionInput.value = description;
+                productSectorInput.value = sector;
+            };
 
-            const processCsvData = (csvText, sector) => {
-                const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l !== '');
-                if (lines.length === 0) {
-                    showMessage('error', 'O arquivo está vazio.', 'cadastro');
+            const updateSearchButtonState = () => {
+                const code = productCodeInput.value.trim();
+                const description = productDescriptionInput.value.trim();
+                const gtin = productGtinInput.value.trim(); 
+
+                const isOnlyCodeFilled = code.length > 0 && description.length === 0 && gtin.length === 0;
+                const isOnlyDescriptionFilled = code.length === 0 && description.length > 0 && gtin.length === 0;
+                const isOnlyGtinFilled = code.length === 0 && description.length === 0 && gtin.length > 0;
+
+                btnSearchProduct.disabled = !(isOnlyCodeFilled || isOnlyDescriptionFilled || isOnlyGtinFilled);
+            };
+
+            btnSearchProduct.addEventListener('click', () => {
+                const code = productCodeInput.value.trim();
+                const description = productDescriptionInput.value.trim();
+                const gtin = productGtinInput.value.trim(); 
+
+                let foundProducts = [];
+
+                if (code) {
+                    const product = products[code];
+                    if (product) {
+                        foundProducts.push(product);
+                    }
+                } else if (gtin) { 
+                    foundProducts = Object.values(products).filter(p => p.gtin === gtin);
+                } else if (description) {
+                    foundProducts = Object.values(products).filter(p => p.descricao.toLowerCase().includes(description.toLowerCase()));
+                } else {
+                    showMessage('error', 'Por favor, insira o Código, o GTIN ou a Descrição para pesquisar.', 'cadastro');
                     return;
                 }
+                
+                if (foundProducts.length === 1) {
+                    productCodeInput.value = foundProducts[0].codigo;
+                    productGtinInput.value = foundProducts[0].gtin || ''; 
+                    productDescriptionInput.value = foundProducts[0].descricao;
+                    productSectorInput.value = foundProducts[0].setor;
+                    showMessage('success', 'Produto encontrado!', 'cadastro');
+                } else if (foundProducts.length > 1) {
+                    let resultsHtml = `
+                        <style>
+                            .result-table { width: 100%; border-collapse: collapse; }
+                            .result-table th, .result-table td { border: 1px solid #ddd; padding: 8px; text-align: left; cursor: pointer; }
+                            .result-table th { background-color: #f2f2f2; }
+                        </style>
+                        <p>Dê um **duplo clique** em um item para selecioná-lo.</p>
+                        <table class="result-table">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>GTIN</th>
+                                    <th>Descrição</th>
+                                    <th>Setor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${foundProducts.map(item => `
+                                    <tr ondblclick="selectProductItem('${item.codigo}', '${item.descricao.replace(/'/g, "\\'")}', '${item.setor}', '${item.gtin || ''}')">
+                                        <td>${item.codigo}</td>
+                                        <td>${item.gtin || '-'}</td>
+                                        <td>${item.descricao}</td>
+                                        <td>${item.setor}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    openModal(`Resultados da Busca para "${code || gtin || description}"`, resultsHtml);
+                } else {
+                    productCodeInput.value = '';
+                    productGtinInput.value = ''; 
+                    productSectorInput.value = '';
+                    showMessage('error', 'Nenhum produto encontrado. Preencha os dados para cadastrá-lo.', 'cadastro');
+                }
+            });
 
-                let importedCount = 0;
-                lines.forEach((line, index) => {
-                    const cols = line.split(/;|,|\t/).map(c => c.replace(/"/g, '').trim());
-                    if (cols.length < 2) return;
+            productCodeInput.addEventListener('input', updateSearchButtonState);
+            productGtinInput.addEventListener('input', updateSearchButtonState); 
+            productDescriptionInput.addEventListener('input', updateSearchButtonState);
 
-                    let code = cols[0].replace(/\D/g, ''); 
-                    let description = cols[1];
-                    let gtin = cols[2] ? cols[2].replace(/\D/g, '') : '';
-
-                    if (index === 0 && (code.toLowerCase().includes('cod') || description.toLowerCase().includes('desc'))) return;
-
-                    if (code && description) {
-                        products[code] = { codigo: code, gtin: gtin, descricao: description, setor: sector };
-                        importedCount++;
-                    }
-                });
-
-                saveToLocalStorage('products', products);
-                showMessage('success', `${importedCount} produto(s) importado(s) com sucesso!`, 'cadastro');
-                updateInventoryList();
-                fileInput.value = '';
+            window.showMessage = (type, content, tabId) => {
+                const messageDiv = document.getElementById(`message-${tabId}`);
+                if (messageDiv) {
+                    messageDiv.innerHTML = content;
+                    messageDiv.className = `message ${type}`;
+                    messageDiv.style.display = 'block';
+                    setTimeout(() => {
+                        messageDiv.style.display = 'none';
+                    }, 5000);
+                }
             };
 
             tabButtons.forEach(button => {
@@ -648,105 +921,770 @@
                     tabContents.forEach(content => content.classList.remove('active'));
                     button.classList.add('active');
                     document.querySelector(`.tab-content[data-tab="${tab}"]`).classList.add('active');
-                    updateInventoryList();
+                    
+                    if (tab === 'estoque') {
+                        filterButtons.forEach(btn => btn.classList.remove('active'));
+                        acougueFilterBtn.classList.add('active');
+                        currentFilter = 'Açougue';
+                        updateInventoryList();
+                    }
+                    if (tab === 'relatorio') {
+                        updateInventoryList();
+                    }
                 });
             });
 
             filterButtons.forEach(button => {
                 button.addEventListener('click', () => {
-                    currentFilter = button.dataset.filter;
-                    filterButtons.forEach(btn => btn.classList.remove('active'));
-                    button.classList.add('active');
-                    updateInventoryList();
+                    const filter = button.dataset.filter;
+                    if (currentFilter !== filter) {
+                        currentFilter = filter;
+                        filterButtons.forEach(btn => btn.classList.remove('active'));
+                        button.classList.add('active');
+                        updateInventoryList();
+                    }
                 });
             });
 
             const updateInventoryList = () => {
                 const inventoryList = document.getElementById('inventory-list');
                 const reportTableBody = document.getElementById('report-table-body');
+
                 inventoryList.innerHTML = '';
                 reportTableBody.innerHTML = '';
+
+                selectedItemCode = null;
 
                 const allProducts = Object.values(products);
                 const filteredProducts = currentFilter ? allProducts.filter(p => p.setor === currentFilter) : allProducts;
 
                 const itemsWithStock = filteredProducts.map(product => {
                     const inventoryItem = inventory[product.codigo];
+                    const total = inventoryItem ? inventoryItem.total : 0;
                     return {
                         codigo: product.codigo,
-                        gtin: product.gtin || '',
                         descricao: product.descricao,
                         setor: product.setor,
-                        total: inventoryItem ? inventoryItem.total : 0
+                        total: total,
+                        gtin: product.gtin 
                     };
                 }).filter(item => item.total !== 0);
 
                 if (itemsWithStock.length === 0) {
                     inventoryList.innerHTML = '<li style="color: #64748b;">Nenhum item em estoque.</li>';
                 } else {
+                    itemsWithStock.sort((a, b) => a.descricao.localeCompare(b.descricao));
                     itemsWithStock.forEach(item => {
                         const li = document.createElement('li');
                         li.className = 'list-item';
-                        li.innerHTML = `<span>${item.codigo} ${item.gtin ? '['+item.gtin+']' : ''}: ${item.descricao}</span><b>Total: ${item.total}</b>`;
+                        const displayGtin = item.gtin ? ` (${item.gtin})` : ''; 
+                        li.innerHTML = `
+                            <span>${item.codigo}: ${item.descricao}${displayGtin}</span>
+                            <span style="color: ${item.total < 0 ? '#dc3545' : '#007bff'}; font-weight: 700;">Total: ${item.total}</span>
+                        `;
+
+                        li.addEventListener('click', () => {
+                            document.querySelectorAll('.list-item').forEach(el => el.classList.remove('selected'));
+                            li.classList.add('selected');
+                            
+                            inventoryCodeInput.value = item.codigo;
+                            inventoryGtinInput.value = item.gtin || ''; 
+                            inventoryDescriptionInput.value = item.descricao;
+                            inventoryTotalInput.value = item.total;
+                            inventoryQuantityInput.value = ''; 
+                        });
+
+                        li.addEventListener('dblclick', () => {
+                            showHistoryPopup(item.codigo);
+                        });
+
                         inventoryList.appendChild(li);
+                    });
+                }
+
+                if (itemsWithStock.length === 0) {
+                    reportTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #64748b;">Nenhum dado de estoque disponível.</td></tr>';
+                } else {
+                    itemsWithStock.sort((a,b) => a.descricao.localeCompare(b.descricao));
+                    itemsWithStock.forEach(item => {
+                        const trReport = document.createElement('tr');
+                        trReport.innerHTML = `
+                            <td>${item.codigo}</td>
+                            <td>${item.descricao}</td>
+                            <td>${item.setor}</td>
+                            <td>${item.total}</td>
+                        `;
+                        reportTableBody.appendChild(trReport);
                     });
                 }
             };
 
-            inventoryGtinInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    const gtinValue = inventoryGtinInput.value.trim();
-                    if (!gtinValue) return;
+            const showHistoryPopup = (itemCode) => {
+                const history = inventoryHistory[itemCode] || [];
+                const item = products[itemCode];
+                let historyHtml = `
+                    <style>
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        th { background-color: #f2f2f2; }
+                    </style>
+                    <h2>Histórico de Movimentação</h2>
+                    <p>Item: <strong>${item.codigo}</strong> - ${item.descricao} (${item.setor})</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Quantidade</th>
+                                <th>Tipo</th>
+                                <th>Novo Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${history.length > 0 ? history.map(entry => `
+                                <tr>
+                                    <td>${entry.timestamp}</td>
+                                    <td style="color: ${entry.quantity < 0 ? '#dc3545' : '#0f5132'};">${entry.quantity}</td>
+                                    <td>${entry.type}</td>
+                                    <td>${entry.newTotal}</td>
+                                </tr>
+                            `).join('') : '<tr><td colspan="4" style="text-align:center; color: #64748b;">Nenhum histórico encontrado para este item.</td></tr>'}
+                        </tbody>
+                    </table>
+                `;
+                openModal(`Histórico de ${item.descricao}`, historyHtml);
+            };
 
-                    const foundProduct = Object.values(products).find(p => p.gtin === gtinValue);
-                    if (foundProduct) {
-                        if (foundProduct.setor !== currentFilter) {
-                            showMessage('error', `O item pertence ao setor: ${foundProduct.setor}.`, 'estoque');
-                            return;
-                        }
-                        inventoryCodeInput.value = foundProduct.codigo;
-                        inventoryDescriptionInput.value = foundProduct.descricao;
-                        inventoryTotalInput.value = inventory[foundProduct.codigo] ? inventory[foundProduct.codigo].total : 0;
-                        inventoryQuantityInput.focus();
-                    } else {
-                        showMessage('error', 'Produto não encontrado pelo GTIN.', 'estoque');
+            formCadastro.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const code = productCodeInput.value.trim();
+                const gtin = productGtinInput.value.trim(); 
+                const description = productDescriptionInput.value.trim();
+                const sector = document.getElementById('product-sector').value.trim();
+
+                if (!code || !description || !sector) {
+                    showMessage('error', 'Por favor, preencha o Código, a Descrição e o Setor.', 'cadastro');
+                    return;
+                }
+
+                if (products[code]) {
+                    const confirmUpdate = confirm(`O produto com o código "${code}" já existe. Deseja alterar os dados dele?`);
+                    if (!confirmUpdate) {
+                        return;
                     }
+                }
+
+                products[code] = { codigo: code, gtin: gtin, descricao: description, setor: sector }; 
+                saveToLocalStorage('products', products);
+                showMessage('success', 'Produto salvo com sucesso!', 'cadastro');
+
+                productCodeInput.value = '';
+                productGtinInput.value = ''; 
+                productDescriptionInput.value = '';
+                productSectorInput.value = '';
+                updateSearchButtonState();
+            });
+
+            btnDeleteProduct.addEventListener('click', () => {
+                const code = productCodeInput.value.trim();
+                
+                if (code) {
+                    if (products[code]) {
+                        const confirmDelete = confirm(`Tem certeza que deseja excluir o produto com o código "${code}"? Esta ação não pode ser desfeita.`);
+                        if (confirmDelete) {
+                            delete products[code];
+                            saveToLocalStorage('products', products);
+
+                            if (inventory[code]) {
+                                delete inventory[code];
+                                saveToLocalStorage('inventory', inventory);
+                            }
+                            if (inventoryHistory[code]) {
+                                delete inventoryHistory[code];
+                                saveToLocalStorage('inventoryHistory', inventoryHistory);
+                            }
+                            showMessage('success', 'Produto excluído com sucesso!', 'cadastro');
+                            productCodeInput.value = '';
+                            productGtinInput.value = ''; 
+                            productDescriptionInput.value = '';
+                            productSectorInput.value = '';
+                            updateSearchButtonState();
+                            updateInventoryList();
+                        }
+                    } else {
+                        showMessage('error', 'Produto não encontrado.', 'cadastro');
+                    }
+                } else {
+                    openProductDeleteModal();
                 }
             });
 
-            document.getElementById('form-cadastro').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const code = productCodeInput.value.trim();
-                const gtin = productGtinInput.value.trim();
-                const description = productDescriptionInput.value.trim();
-                const sector = document.getElementById('product-sector').value;
+            const openProductDeleteModal = () => {
+                const filteredProducts = Object.values(products).filter(p => p.setor === currentFilter);
+                filteredProducts.sort((a, b) => a.descricao.localeCompare(b.descricao));
+                
+                deleteSectorNameSpan.textContent = currentFilter;
+                formDeleteProducts.innerHTML = '';
+                
+                if (filteredProducts.length === 0) {
+                    formDeleteProducts.innerHTML = '<p style="text-align: center; color: #64748b;">Nenhum produto cadastrado neste setor.</p>';
+                } else {
+                    filteredProducts.forEach(product => {
+                        const div = document.createElement('div');
+                        div.className = 'delete-list-item';
+                        const displayGtin = product.gtin ? ` (GTIN: ${product.gtin})` : ''; 
+                        div.innerHTML = `
+                            <input type="checkbox" name="productToDelete" value="${product.codigo}">
+                            <span>${product.codigo}: ${product.descricao}${displayGtin}</span>
+                        `;
+                        formDeleteProducts.appendChild(div);
+                    });
+                }
+                
+                deleteProductModalOverlay.style.display = 'flex';
+            };
 
-                products[code] = { codigo: code, gtin: gtin, descricao: description, setor: sector };
-                saveToLocalStorage('products', products);
-                showMessage('success', 'Produto salvo com sucesso!', 'cadastro');
-                productCodeInput.value = ''; productGtinInput.value = ''; productDescriptionInput.value = '';
+            window.deleteSelectedProducts = () => {
+                const selectedCheckboxes = formDeleteProducts.querySelectorAll('input[name="productToDelete"]:checked');
+                
+                if (selectedCheckboxes.length === 0) {
+                    alert('Por favor, selecione ao menos um produto para excluir.');
+                    return;
+                }
+                
+                const confirmDelete = confirm(`Tem certeza que deseja excluir os ${selectedCheckboxes.length} produto(s) selecionado(s) do setor ${currentFilter}? Esta ação é irreversível.`);
+                
+                if (confirmDelete) {
+                    selectedCheckboxes.forEach(checkbox => {
+                        const code = checkbox.value;
+                        if (products[code]) {
+                            delete products[code];
+                            if (inventory[code]) {
+                                delete inventory[code];
+                            }
+                            if (inventoryHistory[code]) {
+                                delete inventoryHistory[code];
+                            }
+                        }
+                    });
+
+                    saveToLocalStorage('products', products);
+                    saveToLocalStorage('inventory', inventory);
+                    saveToLocalStorage('inventoryHistory', inventoryHistory);
+                    
+                    showMessage('success', `${selectedCheckboxes.length} produto(s) excluído(s) do setor ${currentFilter} com sucesso!`, 'cadastro');
+                    
+                    closeDeleteModal();
+                    updateInventoryList();
+                }
+            };
+
+            importCsvBtn.addEventListener('click', () => {
+                openCsvSectorModal();
             });
 
-            document.getElementById('form-estoque').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const code = inventoryCodeInput.value.trim();
-                let quantity = parseFloat(inventoryQuantityInput.value);
+            let selectedImportSector = '';
+            
+            window.openFileInput = (sector) => {
+                selectedImportSector = sector;
+                closeCsvSectorModal();
+                fileInput.value = ''; 
+                fileInput.click();
+            };
 
-                if (!code || isNaN(quantity)) return;
+            fileInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (!file) {
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const contents = e.target.result;
+                    processCsvData(contents, selectedImportSector);
+                };
+                reader.readAsText(file);
+            });
+
+            const processCsvData = (csvText, sector) => {
+                const delimiter = detectDelimiter(csvText);
+                const rawLines = csvText.split('\n').filter(line => line.trim() !== '');
+                
+                if (rawLines.length === 0) {
+                    showMessage('error', 'O arquivo CSV está vazio ou ilegível.', 'cadastro');
+                    fileInput.value = '';
+                    return;
+                }
+
+                const headerLine = rawLines[0];
+                const header = headerLine.split(delimiter).map(h => h.trim().toUpperCase().replace(/[^A-Z0-9À-ÖØ-öø-ÿ]/g, '')); 
+
+                const codeIndex = header.indexOf('CÓDIGO');
+                const descIndex = header.indexOf('DESCRIÇÃO');
+                const gtinIndex = header.indexOf('GTIN') !== -1 ? header.indexOf('GTIN') : header.indexOf('EAN'); 
+
+                if (codeIndex === -1 || descIndex === -1) {
+                    showMessage('error', `Cabeçalhos necessários 'CÓDIGO' e 'DESCRIÇÃO' não encontrados. O delimitador detectado foi: '${delimiter}'.`, 'cadastro');
+                    fileInput.value = '';
+                    return;
+                }
+                
+                let lines = rawLines;
+                if (header.includes('CÓDIGO') && header.includes('DESCRIÇÃO')) {
+                    lines.shift();
+                }
+
+                const duplicates = [];
+                const productsToImport = [];
+
+                for (const line of lines) {
+                    const data = line.split(delimiter).map(d => d.trim());
+                    
+                    if (data.length <= Math.max(codeIndex, descIndex)) continue; 
+
+                    const code = data[codeIndex];
+                    const description = data[descIndex];
+                    const gtin = gtinIndex !== -1 ? data[gtinIndex] : ''; 
+
+                    const trimmedCode = code.trim();
+                    const trimmedGtin = gtin.trim();
+
+                    if (trimmedCode && description) {
+                        if (isNaN(parseInt(trimmedCode))) continue;
+                        
+                        if (products[trimmedCode]) {
+                            duplicates.push({ code: trimmedCode, description: products[trimmedCode].descricao }); 
+                        } else {
+                            productsToImport.push({ code: trimmedCode, description, sector, gtin: trimmedGtin }); 
+                        }
+                    }
+                }
+
+                if (duplicates.length > 0) {
+                    let errorMessage = 'Não foi possível importar o arquivo. Os seguintes produtos já existem:<br><br>';
+                    duplicates.forEach(item => {
+                        errorMessage += `<strong>Código:</strong> ${item.code} - <strong>Descrição (já cadastrada):</strong> ${item.description}<br>`;
+                    });
+                    showMessage('error', errorMessage, 'cadastro');
+                } else {
+                    productsToImport.forEach(item => {
+                        products[item.code] = {
+                            codigo: item.code,
+                            gtin: item.gtin, 
+                            descricao: item.description,
+                            setor: item.sector
+                        };
+                    });
+                    saveToLocalStorage('products', products);
+                    showMessage('success', `${productsToImport.length} produto(s) importado(s) para o setor ${selectedImportSector} com sucesso!`, 'cadastro');
+                    updateInventoryList();
+                }
+                
+                fileInput.value = ''; 
+            };
+
+            formEstoque.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const code = document.getElementById('inventory-code').value.trim();
+                let quantity = parseFloat(document.getElementById('inventory-quantity').value);
+                const description = document.getElementById('inventory-description').value.trim();
+
+                if (!code || isNaN(quantity) || !description) {
+                    showMessage('error', 'Por favor, preencha o Código, a Descrição e a Quantidade com valores válidos.', 'estoque');
+                    return;
+                }
+
+                const product = products[code];
+                if (!product) {
+                    showMessage('error', 'Produto não cadastrado. Por favor, cadastre-o primeiro.', 'estoque');
+                    return;
+                }
+
+                if (product.setor !== currentFilter) {
+                    showMessage('error', `Esse item não pode ser salvo porque pertence a outro setor (${product.setor}).`, 'estoque');
+                    return;
+                }
+
+                quantity = Math.round(quantity * 10) / 10;
 
                 const currentTotal = inventory[code] ? inventory[code].total : 0;
                 const newTotal = parseFloat((currentTotal + quantity).toFixed(1));
 
-                inventory[code] = { codigo: code, gtin: products[code]?.gtin || '', descricao: inventoryDescriptionInput.value, total: newTotal };
-                saveToLocalStorage('inventory', inventory);
-                showMessage('success', 'Estoque atualizado!', 'estoque');
+                inventory[code] = {
+                    codigo: code,
+                    descricao: description,
+                    total: newTotal
+                };
 
-                inventoryCodeInput.value = ''; inventoryGtinInput.value = ''; inventoryDescriptionInput.value = ''; inventoryQuantityInput.value = ''; inventoryTotalInput.value = '';
+                if (!inventoryHistory[code]) {
+                    inventoryHistory[code] = [];
+                }
+                inventoryHistory[code].push({
+                    timestamp: new Date().toLocaleString(),
+                    quantity: quantity,
+                    type: quantity > 0 ? 'Entrada' : 'Saída',
+                    newTotal: newTotal
+                });
+
+                saveToLocalStorage('inventory', inventory);
+                saveToLocalStorage('inventoryHistory', inventoryHistory);
+                showMessage('success', 'Estoque atualizado com sucesso!', 'estoque');
+
+                document.getElementById('inventory-code').value = '';
+                document.getElementById('inventory-gtin').value = ''; 
+                document.getElementById('inventory-description').value = '';
+                document.getElementById('inventory-quantity').value = '';
+                document.getElementById('inventory-total').value = '';
                 updateInventoryList();
+
+                inventoryCodeInput.focus();
             });
 
+            inventoryDescriptionInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    performFuzzySearch();
+                }
+            });
+
+            inventoryGtinInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    window.performGtinSearch();
+                }
+            });
+            inventoryGtinInput.addEventListener('blur', () => {
+                window.performGtinSearch();
+            });
+
+            window.performGtinSearch = () => {
+                const gtin = inventoryGtinInput.value.trim();
+                if (gtin.length < 5) return; 
+
+                const foundItem = Object.values(products).find(p => p.gtin === gtin && p.setor === currentFilter);
+
+                if (foundItem) {
+                    const currentTotal = inventory[foundItem.codigo] ? inventory[foundItem.codigo].total : 0;
+                    inventoryCodeInput.value = foundItem.codigo;
+                    inventoryDescriptionInput.value = foundItem.descricao;
+                    inventoryTotalInput.value = currentTotal;
+                    inventoryQuantityInput.focus();
+                    showMessage('success', 'Produto encontrado pelo GTIN.', 'estoque');
+                } else {
+                    inventoryCodeInput.value = '';
+                    inventoryDescriptionInput.value = '';
+                    inventoryTotalInput.value = '';
+                    showMessage('error', 'Nenhum item encontrado com esse GTIN para o setor atual.', 'estoque');
+                }
+            };
+
+            inventoryDescriptionInput.addEventListener('blur', () => {
+                performFuzzySearch();
+            });
+
+            const performFuzzySearch = () => {
+                const query = inventoryDescriptionInput.value.trim().toLowerCase();
+                if (query.length < 2) return; 
+                
+                const foundItems = Object.values(products).filter(p => 
+                    p.descricao.toLowerCase().includes(query) && p.setor === currentFilter
+                );
+
+                if (foundItems.length > 0) {
+                    let resultsHtml = `
+                        <style>
+                            .result-table { width: 100%; border-collapse: collapse; }
+                            .result-table th, .result-table td { border: 1px solid #ddd; padding: 8px; text-align: left; cursor: pointer; }
+                            .result-table th { background-color: #f2f2f2; }
+                        </style>
+                        <p>Dê um **duplo clique** em um item para selecioná-lo.</p>
+                        <table class="result-table">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>GTIN</th>
+                                    <th>Descrição</th>
+                                    <th>Total Atual</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${foundItems.map(item => {
+                                    const currentTotal = inventory[item.codigo] ? inventory[item.codigo].total : 0;
+                                    return `
+                                        <tr ondblclick="selectFoundItem('${item.codigo}', '${item.descricao.replace(/'/g, "\\'")}', '${currentTotal}', '${item.gtin || ''}')">
+                                            <td>${item.codigo}</td>
+                                            <td>${item.gtin || '-'}</td>
+                                            <td>${item.descricao}</td>
+                                            <td>${currentTotal}</td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    openModal(`Resultados da Busca para "${query}"`, resultsHtml);
+                } else {
+                    showMessage('error', 'Nenhum item encontrado com essa descrição para o setor atual.', 'estoque');
+                }
+            };
+            
+            document.getElementById('inventory-code').addEventListener('input', (e) => {
+                const code = e.target.value.trim();
+                const product = products[code];
+                document.getElementById('inventory-description').value = product ? product.descricao : '';
+                document.getElementById('inventory-gtin').value = product ? product.gtin : ''; 
+                document.getElementById('inventory-total').value = inventory[code] ? inventory[code].total : 0;
+            });
+            
+            document.getElementById('inventory-code').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); 
+                    const code = e.target.value.trim();
+                    if (products[code]) {
+                        inventoryQuantityInput.focus();
+                    } else {
+                        showMessage('error', 'Produto não encontrado. Verifique o código.', 'estoque');
+                    }
+                }
+            });
+
+            exportCsvBtn.addEventListener('click', () => {
+                const filteredProducts = currentFilter ? Object.values(products).filter(p => p.setor === currentFilter) : Object.values(products);
+                const itemsWithStock = filteredProducts.map(p => {
+                    const total = inventory[p.codigo] ? inventory[p.codigo].total : 0;
+                    return { ...p, total, gtin: p.gtin || '' }; 
+                }).filter(item => item.total !== 0);
+
+                if (itemsWithStock.length === 0) {
+                    showMessage('error', 'Nenhum dado para exportar.', 'relatorio');
+                    return;
+                }
+            
+                const header = '"Código","GTIN","Total"';
+                const csvRows = itemsWithStock.map(item => `"${item.codigo}","${item.gtin}",${item.total}`);
+                const csvContent = [header, ...csvRows].join('\n');
+            
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.setAttribute('download', `relatorio_estoque_${currentFilter || 'geral'}.csv`);
+                link.click();
+            });
+
+            exportPdfBtn.addEventListener('click', () => {
+                const filteredProducts = currentFilter ? Object.values(products).filter(p => p.setor === currentFilter) : Object.values(products);
+
+                const itemsWithStock = filteredProducts.map(p => {
+                    const total = inventory[p.codigo] ? inventory[p.codigo].total : 0;
+                    return {
+                        codigo: p.codigo,
+                        descricao: p.descricao,
+                        setor: p.setor,
+                        total: total,
+                        gtin: p.gtin 
+                    };
+                }).filter(item => item.total !== 0);
+
+                if (itemsWithStock.length === 0) {
+                    showMessage('error', 'Nenhum dado para exportar.', 'relatorio');
+                    return;
+                }
+
+                const reportHtml = `
+                    <html>
+                    <head>
+                        <title>Relatório de Estoque</title>
+                        <style>
+                            body { font-family: sans-serif; padding: 20px; }
+                            h1 { text-align: center; }
+                            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                            th { background-color: #f2f2f2; }
+                            @media print {
+                                body { margin: 0; }
+                                h1 { font-size: 1.5em; }
+                                table { font-size: 0.9em; }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>Relatório de Estoque - ${currentFilter || 'Todos os Setores'}</h1>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>GTIN</th>
+                                    <th>Descrição</th>
+                                    <th>Setor</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            ${itemsWithStock.map(item => `
+                                <tr>
+                                    <td>${item.codigo}</td>
+                                    <td>${item.gtin || '-'}</td>
+                                    <td>${item.descricao}</td>
+                                    <td>${item.setor}</td>
+                                    <td>${item.total}</td>
+                                </tr>
+                            `).join('')}
+                            </tbody>
+                        </table>
+                    </body>
+                    </html>
+                `;
+                const printWindow = window.open('', '', 'height=600,width=800');
+                printWindow.document.write(reportHtml);
+                printWindow.document.close();
+                printWindow.print();
+            });
+
+            openZeroStockBtn.addEventListener('click', () => {
+                const filteredProducts = currentFilter ? Object.values(products).filter(p => p.setor === currentFilter) : Object.values(products);
+                const zeroAndMissingStockItems = filteredProducts.filter(p => !inventory[p.codigo] || inventory[p.codigo].total === 0);
+                
+                zeroAndMissingStockItems.sort((a, b) => a.descricao.localeCompare(b.descricao));
+
+                let reportHtml = `
+                    <style>
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; cursor: pointer; }
+                        th { background-color: #f2f2f2; }
+                    </style>
+                    <p>Dê um **duplo clique** em um item para preencher os campos de estoque.</p>
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>GTIN</th>
+                            <th>Descrição</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        ${zeroAndMissingStockItems.length > 0 ? zeroAndMissingStockItems.map(item => `
+                            <tr ondblclick="selectZeroStockItem('${item.codigo}', '${item.descricao}', '${item.gtin || ''}')">
+                                <td>${item.codigo}</td>
+                                <td>${item.gtin || '-'}</td>
+                                <td>${item.descricao}</td>
+                            </tr>
+                        `).join('') : '<tr><td colspan="3" style="text-align: center; color: #64748b;">Nenhum item com estoque zero ou não informado.</td></tr>'}
+                        </tbody>
+                    </table>
+                `;
+                openModal(`Relatório de Itens com Estoque Zero - ${currentFilter || 'Todos os Setores'}`, reportHtml);
+            });
+
+            openProductReportBtn.addEventListener('click', () => {
+                openSectorModal();
+            });
+
+            window.printReport = (reportHtml) => {
+                const printWindow = window.open('', '', 'height=600,width=800');
+                printWindow.document.write(reportHtml);
+                printWindow.document.close();
+                printWindow.print();
+            };
+
+            window.generateProductReport = (sector) => {
+                closeSectorModal();
+                const filteredProducts = Object.values(products).filter(p => p.setor === sector);
+                filteredProducts.sort((a, b) => a.descricao.localeCompare(b.descricao));
+
+                const reportHtml = `
+                    <style>
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        th { background-color: #f2f2f2; }
+                        .print-button-container { text-align: right; margin-bottom: 15px; }
+                        @media print {
+                            .print-button-container { display: none; }
+                            body { margin: 0; }
+                            h1 { font-size: 1.5em; }
+                            table { font-size: 0.9em; }
+                        }
+                    </style>
+                    <h1>Relatório de Produtos Cadastrados - ${sector}</h1>
+                    <div class="print-button-container">
+                        <button class="btn btn-secondary" onclick="printReport(document.querySelector('.modal-content').innerHTML)">Imprimir</button>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>GTIN</th>
+                                <th>Descrição</th>
+                                <th>Setor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        ${filteredProducts.length > 0 ? filteredProducts.map(item => `
+                            <tr>
+                                <td>${item.codigo}</td>
+                                <td>${item.gtin || '-'}</td>
+                                <td>${item.descricao}</td>
+                                <td>${item.setor}</td>
+                            </tr>
+                        `).join('') : '<tr><td colspan="4" style="text-align: center; color: #64748b;">Nenhum produto cadastrado neste setor.</td></tr>'}
+                        </tbody>
+                    </table>
+                `;
+                openModal(`Relatório de Produtos Cadastrados - ${sector}`, reportHtml);
+            };
+
+            clearAllBtn.addEventListener('click', () => {
+                if (inventoryDescriptionInput.value.toUpperCase() === 'APAGAR') {
+                    inventory = {};
+                    inventoryHistory = {};
+                    saveToLocalStorage('inventory', inventory);
+                    saveToLocalStorage('inventoryHistory', inventoryHistory);
+                    updateInventoryList();
+                    showMessage('success', 'Todo o estoque e o histórico de movimentação foram apagados com sucesso!', 'gerenciar');
+                } else {
+                    showMessage('error', "Para apagar o estoque, digite 'APAGAR' no campo de descrição da aba Estoque e clique em 'Apagar todos os itens do estoque'.", 'gerenciar');
+                }
+            });
+
+            clearProductsBySectorBtn.addEventListener('click', () => {
+                if (productDescriptionInput.value.toUpperCase() === 'APAGAR') {
+                    const productsToDelete = Object.keys(products).filter(code => products[code].setor === currentFilter);
+                    let deletedCount = 0;
+                    
+                    if (productsToDelete.length > 0) {
+                        productsToDelete.forEach(code => {
+                            delete products[code];
+                            if (inventory[code]) {
+                                delete inventory[code];
+                            }
+                            if (inventoryHistory[code]) {
+                                delete inventoryHistory[code];
+                            }
+                            deletedCount++;
+                        });
+                        
+                        saveToLocalStorage('products', products);
+                        saveToLocalStorage('inventory', inventory);
+                        saveToLocalStorage('inventoryHistory', inventoryHistory);
+                        updateInventoryList();
+                        showMessage('success', `${deletedCount} produto(s) do setor ${currentFilter} foram apagados com sucesso!`, 'gerenciar');
+                    } else {
+                        showMessage('error', `Não há produtos cadastrados no setor ${currentFilter} para apagar.`, 'gerenciar');
+                    }
+
+                    productDescriptionInput.value = '';
+                } else {
+                    showMessage('error', `Para apagar os produtos do setor ${currentFilter}, digite 'APAGAR' no campo de descrição de produto na aba de Cadastro e clique em 'Apagar todos itens cadastrados'.`, 'gerenciar');
+                }
+            });
+
+            document.querySelector('.tab-content[data-tab="estoque"]').classList.add('active');
+            
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            acougueFilterBtn.classList.add('active');
+            currentFilter = 'Açougue';
+
             updateInventoryList();
+
+            updateSearchButtonState();
         });
     </script>
 </body>
