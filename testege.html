@@ -361,6 +361,10 @@
                             <input type="number" id="product-code" required step="1" onkeydown="return event.key !== 'e' && event.key !== 'E'">
                         </div>
                         <div class="form-group">
+                            <label for="product-gtin">GTIN (Código de Barras)</label>
+                            <input type="text" id="product-gtin" placeholder="Ex: 7891234567890">
+                        </div>
+                        <div class="form-group">
                             <label for="product-description">Descrição do Item</label>
                             <input type="text" id="product-description" required>
                         </div>
@@ -399,7 +403,11 @@
                     <form id="form-estoque">
                         <div class="form-group">
                             <label for="inventory-code">Código do Item</label>
-                            <input type="number" id="inventory-code" required step="1" onkeydown="return event.key !== 'e' && event.key !== 'E'" onchange="this.value.trim() ? document.getElementById('inventory-quantity').focus() : document.getElementById('inventory-description').focus();">
+                            <input type="number" id="inventory-code" required step="1" onkeydown="return event.key !== 'e' && event.key !== 'E'">
+                        </div>
+                        <div class="form-group">
+                            <label for="inventory-gtin">GTIN (Código de Barras)</label>
+                            <input type="text" id="inventory-gtin" placeholder="Passe o leitor ou digite o GTIN">
                         </div>
                         <div class="form-group">
                             <label for="inventory-description">Descrição do Item</label>
@@ -438,6 +446,7 @@
                         <thead>
                             <tr>
                                 <th>Código</th>
+                                <th>GTIN</th>
                                 <th>Descrição</th>
                                 <th>Setor</th>
                                 <th>Total</th>
@@ -539,7 +548,6 @@
             let inventory = loadFromLocalStorage('inventory');
             let inventoryHistory = loadFromLocalStorage('inventoryHistory') || {};
             let currentFilter = 'Açougue';
-            let selectedItemCode = null;
 
             const tabButtons = document.querySelectorAll('.tab-button');
             const tabContents = document.querySelectorAll('.tab-content');
@@ -547,7 +555,6 @@
             const acougueFilterBtn = document.querySelector('[data-filter="Açougue"]');
             const importCsvBtn = document.getElementById('btn-import-csv');
             const fileInput = document.getElementById('file-input');
-            const clearProductsBySectorBtn = document.getElementById('clear-products-by-sector-btn');
 
             const formCadastro = document.getElementById('form-cadastro');
             const btnSearchProduct = document.getElementById('btn-search-product');
@@ -569,10 +576,13 @@
             const csvSectorModalOverlay = document.getElementById('csv-sector-modal-overlay');
 
             const inventoryCodeInput = document.getElementById('inventory-code');
+            const inventoryGtinInput = document.getElementById('inventory-gtin');
             const inventoryDescriptionInput = document.getElementById('inventory-description');
             const inventoryQuantityInput = document.getElementById('inventory-quantity');
             const inventoryTotalInput = document.getElementById('inventory-total');
+            
             const productCodeInput = document.getElementById('product-code');
+            const productGtinInput = document.getElementById('product-gtin');
             const productDescriptionInput = document.getElementById('product-description');
             const productSectorInput = document.getElementById('product-sector');
 
@@ -603,10 +613,6 @@
                 sectorSelectModalOverlay.style.display = 'none';
             };
 
-            const openCsvSectorModal = () => {
-                csvSectorModalOverlay.style.display = 'flex';
-            };
-
             window.closeCsvSectorModal = () => {
                 csvSectorModalOverlay.style.display = 'none';
             };
@@ -615,60 +621,66 @@
                 deleteProductModalOverlay.style.display = 'none';
             };
 
-            window.selectZeroStockItem = (code, description) => {
+            window.selectZeroStockItem = (code, description, gtin) => {
                 closeModal();
                 inventoryCodeInput.value = code;
+                inventoryGtinInput.value = gtin || '';
                 inventoryDescriptionInput.value = description;
                 inventoryTotalInput.value = 0;
                 inventoryQuantityInput.value = '';
                 inventoryQuantityInput.focus();
             };
 
-            window.selectFoundItem = (code, description, total) => {
+            window.selectFoundItem = (code, description, total, gtin) => {
                 closeModal();
                 inventoryCodeInput.value = code;
+                inventoryGtinInput.value = gtin || '';
                 inventoryDescriptionInput.value = description;
                 inventoryTotalInput.value = total;
                 inventoryQuantityInput.value = '';
                 inventoryQuantityInput.focus();
             };
 
-            window.selectProductItem = (code, description, sector) => {
+            window.selectProductItem = (code, description, sector, gtin) => {
                 closeModal();
                 productCodeInput.value = code;
+                productGtinInput.value = gtin || '';
                 productDescriptionInput.value = description;
                 productSectorInput.value = sector;
             };
 
             const updateSearchButtonState = () => {
                 const code = productCodeInput.value.trim();
+                const gtin = productGtinInput.value.trim();
                 const description = productDescriptionInput.value.trim();
-                const isOnlyCodeFilled = code.length > 0 && description.length === 0;
-                const isOnlyDescriptionFilled = code.length === 0 && description.length > 0;
-                btnSearchProduct.disabled = !(isOnlyCodeFilled || isOnlyDescriptionFilled);
+                btnSearchProduct.disabled = !(code.length > 0 || gtin.length > 0 || description.length > 0);
             };
 
             btnSearchProduct.addEventListener('click', () => {
                 const code = productCodeInput.value.trim();
+                const gtin = productGtinInput.value.trim();
                 const description = productDescriptionInput.value.trim();
 
+                let found = null;
+
                 if (code) {
-                    const product = products[code];
-                    if (product) {
-                        productCodeInput.value = product.codigo;
-                        productDescriptionInput.value = product.descricao;
-                        productSectorInput.value = product.setor;
-                        showMessage('success', 'Produto encontrado!', 'cadastro');
-                    } else {
-                        productDescriptionInput.value = '';
-                        productSectorInput.value = '';
-                        showMessage('error', 'Produto não encontrado. Preencha os dados para cadastrá-lo.', 'cadastro');
-                    }
+                    found = products[code];
+                } else if (gtin) {
+                    found = Object.values(products).find(p => p.gtin === gtin);
+                }
+
+                if (found) {
+                    productCodeInput.value = found.codigo;
+                    productGtinInput.value = found.gtin || '';
+                    productDescriptionInput.value = found.descricao;
+                    productSectorInput.value = found.setor;
+                    showMessage('success', 'Produto encontrado!', 'cadastro');
                 } else if (description) {
                     const foundProducts = Object.values(products).filter(p => p.descricao.toLowerCase().includes(description.toLowerCase()));
 
                     if (foundProducts.length === 1) {
                         productCodeInput.value = foundProducts[0].codigo;
+                        productGtinInput.value = foundProducts[0].gtin || '';
                         productDescriptionInput.value = foundProducts[0].descricao;
                         productSectorInput.value = foundProducts[0].setor;
                         showMessage('success', 'Produto encontrado!', 'cadastro');
@@ -684,14 +696,16 @@
                                 <thead>
                                     <tr>
                                         <th>Código</th>
+                                        <th>GTIN</th>
                                         <th>Descrição</th>
                                         <th>Setor</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     ${foundProducts.map(item => `
-                                        <tr ondblclick="selectProductItem('${item.codigo}', '${item.descricao.replace(/'/g, "\\'")}', '${item.setor}')">
+                                        <tr ondblclick="selectProductItem('${item.codigo}', '${item.descricao.replace(/'/g, "\\'")}', '${item.setor}', '${item.gtin || ''}')">
                                             <td>${item.codigo}</td>
+                                            <td>${item.gtin || '-'}</td>
                                             <td>${item.descricao}</td>
                                             <td>${item.setor}</td>
                                         </tr>
@@ -699,18 +713,17 @@
                                 </tbody>
                             </table>
                         `;
-                        openModal(`Resultados da Busca para "${description}"`, resultsHtml);
+                        openModal(`Resultados para "${description}"`, resultsHtml);
                     } else {
-                        productCodeInput.value = '';
-                        productSectorInput.value = '';
-                        showMessage('error', 'Nenhum produto com essa descrição foi encontrado.', 'cadastro');
+                        showMessage('error', 'Nenhum produto encontrado com essa descrição.', 'cadastro');
                     }
                 } else {
-                    showMessage('error', 'Por favor, insira o Código ou a Descrição para pesquisar.', 'cadastro');
+                    showMessage('error', 'Produto não encontrado.', 'cadastro');
                 }
             });
 
             productCodeInput.addEventListener('input', updateSearchButtonState);
+            productGtinInput.addEventListener('input', updateSearchButtonState);
             productDescriptionInput.addEventListener('input', updateSearchButtonState);
 
             const showMessage = (type, content, tabId) => {
@@ -754,7 +767,6 @@
 
                 inventoryList.innerHTML = '';
                 reportTableBody.innerHTML = '';
-                selectedItemCode = null;
 
                 const allProducts = Object.values(products);
                 const filteredProducts = currentFilter ? allProducts.filter(p => p.setor === currentFilter) : allProducts;
@@ -764,6 +776,7 @@
                     const total = inventoryItem ? inventoryItem.total : 0;
                     return {
                         codigo: product.codigo,
+                        gtin: product.gtin || '',
                         descricao: product.descricao,
                         setor: product.setor,
                         total: total
@@ -778,7 +791,7 @@
                         const li = document.createElement('li');
                         li.className = 'list-item';
                         li.innerHTML = `
-                            <span>${item.codigo}: ${item.descricao}</span>
+                            <span>${item.codigo} ${item.gtin ? '['+item.gtin+']' : ''}: ${item.descricao}</span>
                             <span style="color: ${item.total < 0 ? '#dc3545' : '#007bff'}; font-weight: 700;">Total: ${item.total}</span>
                         `;
 
@@ -786,6 +799,7 @@
                             document.querySelectorAll('.list-item').forEach(el => el.classList.remove('selected'));
                             li.classList.add('selected');
                             inventoryCodeInput.value = item.codigo;
+                            inventoryGtinInput.value = item.gtin;
                             inventoryDescriptionInput.value = item.descricao;
                             inventoryTotalInput.value = item.total;
                             inventoryQuantityInput.value = '';
@@ -800,13 +814,14 @@
                 }
 
                 if (itemsWithStock.length === 0) {
-                    reportTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #64748b;">Nenhum dado de estoque disponível.</td></tr>';
+                    reportTableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #64748b;">Nenhum dado de estoque disponível.</td></tr>';
                 } else {
                     itemsWithStock.sort((a,b) => a.descricao.localeCompare(b.descricao));
                     itemsWithStock.forEach(item => {
                         const trReport = document.createElement('tr');
                         trReport.innerHTML = `
                             <td>${item.codigo}</td>
+                            <td>${item.gtin || '-'}</td>
                             <td>${item.descricao}</td>
                             <td>${item.setor}</td>
                             <td>${item.total}</td>
@@ -854,11 +869,12 @@
             formCadastro.addEventListener('submit', (e) => {
                 e.preventDefault();
                 const code = productCodeInput.value.trim();
+                const gtin = productGtinInput.value.trim();
                 const description = productDescriptionInput.value.trim();
-                const sector = document.getElementById('product-sector').value.trim();
+                const sector = productSectorInput.value.trim();
 
                 if (!code || !description || !sector) {
-                    showMessage('error', 'Por favor, preencha todos os campos.', 'cadastro');
+                    showMessage('error', 'Por favor, preencha código, descrição e setor.', 'cadastro');
                     return;
                 }
 
@@ -867,11 +883,12 @@
                     if (!confirmUpdate) return;
                 }
 
-                products[code] = { codigo: code, descricao: description, setor: sector };
+                products[code] = { codigo: code, gtin: gtin, descricao: description, setor: sector };
                 saveToLocalStorage('products', products);
                 showMessage('success', 'Produto salvo com sucesso!', 'cadastro');
 
                 productCodeInput.value = '';
+                productGtinInput.value = '';
                 productDescriptionInput.value = '';
                 productSectorInput.value = '';
                 updateSearchButtonState();
@@ -892,6 +909,7 @@
                             
                             showMessage('success', 'Produto excluído com sucesso!', 'cadastro');
                             productCodeInput.value = '';
+                            productGtinInput.value = '';
                             productDescriptionInput.value = '';
                             productSectorInput.value = '';
                             updateSearchButtonState();
@@ -920,7 +938,7 @@
                         div.className = 'delete-list-item';
                         div.innerHTML = `
                             <input type="checkbox" name="productToDelete" value="${product.codigo}">
-                            <span>${product.codigo}: ${product.descricao}</span>
+                            <span>${product.codigo} ${product.gtin ? '['+product.gtin+']' : ''}: ${product.descricao}</span>
                         `;
                         formDeleteProducts.appendChild(div);
                     });
@@ -956,9 +974,8 @@
                 }
             };
 
-            // Importação CSV Ajustada e Flexível
             importCsvBtn.addEventListener('click', () => {
-                openCsvSectorModal();
+                csvSectorModalOverlay.style.display = 'flex';
             });
 
             let selectedImportSector = '';
@@ -980,7 +997,6 @@
                 reader.readAsText(file);
             });
 
-            // Parser flexível para lidar com aspas, ; , e tabulações
             const parseCsvLine = (line) => {
                 const delimiters = [';', ',', '\t'];
                 let chosenDelimiter = ';';
@@ -1018,10 +1034,10 @@
                     const cols = parseCsvLine(line);
                     if (cols.length < 2) return;
 
-                    let code = cols[0].replace(/\D/g, ''); // Garante formato numérico de código
+                    let code = cols[0].replace(/\D/g, ''); 
                     let description = cols[1];
+                    let gtin = cols[2] ? cols[2].replace(/\D/g, '') : '';
 
-                    // Pula cabeçalho se houver
                     if (index === 0 && (code.toLowerCase().includes('cod') || description.toLowerCase().includes('desc'))) {
                         return;
                     }
@@ -1030,7 +1046,7 @@
                         if (products[code]) {
                             duplicates.push({ code, description: products[code].descricao });
                         } else {
-                            productsToImport.push({ code, description, sector });
+                            productsToImport.push({ code, description, sector, gtin });
                         }
                     }
                 });
@@ -1045,6 +1061,7 @@
                     productsToImport.forEach(item => {
                         products[item.code] = {
                             codigo: item.code,
+                            gtin: item.gtin,
                             descricao: item.description,
                             setor: item.sector
                         };
@@ -1061,9 +1078,9 @@
 
             formEstoque.addEventListener('submit', (e) => {
                 e.preventDefault();
-                const code = document.getElementById('inventory-code').value.trim();
-                let quantity = parseFloat(document.getElementById('inventory-quantity').value);
-                const description = document.getElementById('inventory-description').value.trim();
+                const code = inventoryCodeInput.value.trim();
+                let quantity = parseFloat(inventoryQuantityInput.value);
+                const description = inventoryDescriptionInput.value.trim();
 
                 if (!code || isNaN(quantity) || !description) {
                     showMessage('error', 'Por favor, preencha todos os campos corretamente.', 'estoque');
@@ -1085,7 +1102,7 @@
                 const currentTotal = inventory[code] ? inventory[code].total : 0;
                 const newTotal = parseFloat((currentTotal + quantity).toFixed(1));
 
-                inventory[code] = { codigo: code, descricao: description, total: newTotal };
+                inventory[code] = { codigo: code, gtin: product.gtin || '', descricao: description, total: newTotal };
 
                 if (!inventoryHistory[code]) inventoryHistory[code] = [];
                 inventoryHistory[code].push({
@@ -1099,12 +1116,62 @@
                 saveToLocalStorage('inventoryHistory', inventoryHistory);
                 showMessage('success', 'Estoque atualizado!', 'estoque');
 
-                document.getElementById('inventory-code').value = '';
-                document.getElementById('inventory-description').value = '';
-                document.getElementById('inventory-quantity').value = '';
-                document.getElementById('inventory-total').value = '';
+                inventoryCodeInput.value = '';
+                inventoryGtinInput.value = '';
+                inventoryDescriptionInput.value = '';
+                inventoryQuantityInput.value = '';
+                inventoryTotalInput.value = '';
                 updateInventoryList();
                 inventoryCodeInput.focus();
+            });
+
+            // Suporte ao leitor de código de barras no GTIN e busca por código
+            inventoryGtinInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const gtinValue = inventoryGtinInput.value.trim();
+                    if (!gtinValue) return;
+
+                    const foundProduct = Object.values(products).find(p => p.gtin === gtinValue);
+
+                    if (foundProduct) {
+                        if (foundProduct.setor !== currentFilter) {
+                            showMessage('error', `O item pertence ao setor: ${foundProduct.setor}.`, 'estoque');
+                            return;
+                        }
+                        inventoryCodeInput.value = foundProduct.codigo;
+                        inventoryDescriptionInput.value = foundProduct.descricao;
+                        inventoryTotalInput.value = inventory[foundProduct.codigo] ? inventory[foundProduct.codigo].total : 0;
+                        inventoryQuantityInput.focus();
+                    } else {
+                        showMessage('error', 'Produto não encontrado pelo GTIN fornecido.', 'estoque');
+                    }
+                }
+            });
+
+            inventoryCodeInput.addEventListener('input', (e) => {
+                const code = e.target.value.trim();
+                if (products[code]) {
+                    inventoryGtinInput.value = products[code].gtin || '';
+                    inventoryDescriptionInput.value = products[code].descricao;
+                    inventoryTotalInput.value = inventory[code] ? inventory[code].total : 0;
+                } else {
+                    inventoryGtinInput.value = '';
+                    inventoryDescriptionInput.value = '';
+                    inventoryTotalInput.value = 0;
+                }
+            });
+
+            inventoryCodeInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const code = e.target.value.trim();
+                    if (products[code]) {
+                        inventoryQuantityInput.focus();
+                    } else {
+                        inventoryGtinInput.focus();
+                    }
+                }
             });
 
             inventoryDescriptionInput.addEventListener('keydown', (e) => {
@@ -1138,6 +1205,7 @@
                             <thead>
                                 <tr>
                                     <th>Código</th>
+                                    <th>GTIN</th>
                                     <th>Descrição</th>
                                     <th>Total Atual</th>
                                 </tr>
@@ -1146,8 +1214,9 @@
                                 ${foundItems.map(item => {
                                     const currentTotal = inventory[item.codigo] ? inventory[item.codigo].total : 0;
                                     return `
-                                        <tr ondblclick="selectFoundItem('${item.codigo}', '${item.descricao.replace(/'/g, "\\'")}', '${currentTotal}')">
+                                        <tr ondblclick="selectFoundItem('${item.codigo}', '${item.descricao.replace(/'/g, "\\'")}', '${currentTotal}', '${item.gtin || ''}')">
                                             <td>${item.codigo}</td>
+                                            <td>${item.gtin || '-'}</td>
                                             <td>${item.descricao}</td>
                                             <td>${currentTotal}</td>
                                         </tr>
@@ -1156,29 +1225,11 @@
                             </tbody>
                         </table>
                     `;
-                    openModal(`Resultados da Busca para "${query}"`, resultsHtml);
+                    openModal(`Resultados para "${query}"`, resultsHtml);
                 } else {
                     showMessage('error', 'Nenhum item encontrado no setor atual.', 'estoque');
                 }
             };
-            
-            document.getElementById('inventory-code').addEventListener('input', (e) => {
-                const code = e.target.value.trim();
-                document.getElementById('inventory-description').value = products[code] ? products[code].descricao : '';
-                document.getElementById('inventory-total').value = inventory[code] ? inventory[code].total : 0;
-            });
-            
-            document.getElementById('inventory-code').addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault(); 
-                    const code = e.target.value.trim();
-                    if (products[code]) {
-                        inventoryQuantityInput.focus();
-                    } else {
-                        showMessage('error', 'Produto não encontrado.', 'estoque');
-                    }
-                }
-            });
 
             exportCsvBtn.addEventListener('click', () => {
                 const filteredProducts = currentFilter ? Object.values(products).filter(p => p.setor === currentFilter) : Object.values(products);
@@ -1192,8 +1243,8 @@
                     return;
                 }
             
-                const header = '"Código";"Total"';
-                const csvRows = itemsWithStock.map(item => `"${item.codigo}";"${item.total}"`);
+                const header = '"Código";"GTIN";"Total"';
+                const csvRows = itemsWithStock.map(item => `"${item.codigo}";"${item.gtin || ''}";"${item.total}"`);
                 const csvContent = [header, ...csvRows].join('\n');
             
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -1207,6 +1258,7 @@
                 const filteredProducts = currentFilter ? Object.values(products).filter(p => p.setor === currentFilter) : Object.values(products);
                 const itemsWithStock = filteredProducts.map(p => ({
                     codigo: p.codigo,
+                    gtin: p.gtin || '',
                     descricao: p.descricao,
                     setor: p.setor,
                     total: inventory[p.codigo] ? inventory[p.codigo].total : 0
@@ -1235,6 +1287,7 @@
                             <thead>
                                 <tr>
                                     <th>Código</th>
+                                    <th>GTIN</th>
                                     <th>Total</th>
                                     <th>Descrição</th>
                                     <th>Setor</th>
@@ -1244,6 +1297,7 @@
                             ${itemsWithStock.map(item => `
                                 <tr>
                                     <td>${item.codigo}</td>
+                                    <td>${item.gtin || '-'}</td>
                                     <td>${item.total}</td>
                                     <td>${item.descricao}</td>
                                     <td>${item.setor}</td>
@@ -1275,16 +1329,18 @@
                         <thead>
                         <tr>
                             <th>Código</th>
+                            <th>GTIN</th>
                             <th>Descrição</th>
                         </tr>
                         </thead>
                         <tbody>
                         ${zeroAndMissingStockItems.length > 0 ? zeroAndMissingStockItems.map(item => `
-                            <tr ondblclick="selectZeroStockItem('${item.codigo}', '${item.descricao}')">
+                            <tr ondblclick="selectZeroStockItem('${item.codigo}', '${item.descricao}', '${item.gtin || ''}')">
                                 <td>${item.codigo}</td>
+                                <td>${item.gtin || '-'}</td>
                                 <td>${item.descricao}</td>
                             </tr>
-                        `).join('') : '<tr><td colspan="2" style="text-align: center; color: #64748b;">Nenhum item não informado.</td></tr>'}
+                        `).join('') : '<tr><td colspan="3" style="text-align: center; color: #64748b;">Nenhum item não informado.</td></tr>'}
                         </tbody>
                     </table>
                 `;
@@ -1322,6 +1378,7 @@
                         <thead>
                             <tr>
                                 <th>Código</th>
+                                <th>GTIN</th>
                                 <th>Descrição</th>
                                 <th>Setor</th>
                             </tr>
@@ -1330,10 +1387,11 @@
                         ${filteredProducts.length > 0 ? filteredProducts.map(item => `
                             <tr>
                                 <td>${item.codigo}</td>
+                                <td>${item.gtin || '-'}</td>
                                 <td>${item.descricao}</td>
                                 <td>${item.setor}</td>
                             </tr>
-                        `).join('') : '<tr><td colspan="3" style="text-align: center; color: #64748b;">Nenhum produto cadastrado neste setor.</td></tr>'}
+                        `).join('') : '<tr><td colspan="4" style="text-align: center; color: #64748b;">Nenhum produto cadastrado neste setor.</td></tr>'}
                         </tbody>
                     </table>
                 `;
