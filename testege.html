@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciador de Estoque e Produtos</title>
-    <!-- Biblioteca QuaggaJS para leitura de código de barras via câmera -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
     <style>
         body {
@@ -176,13 +175,10 @@
             margin-top: 16px;
         }
         .btn-camera {
-            background-color: #10b981;
+            background-color: #28a745;
             color: #fff;
             margin-top: 6px;
             width: 100%;
-        }
-        .btn-camera:hover {
-            background-color: #059669;
         }
         .message {
             padding: 12px;
@@ -254,7 +250,6 @@
             justify-content: center;
             align-items: center;
             z-index: 1000;
-            animation: fadeIn 0.3s ease-in-out;
         }
         .modal-content {
             background-color: #fff;
@@ -266,11 +261,6 @@
             max-height: 90vh;
             overflow-y: auto;
             position: relative;
-            animation: slideIn 0.3s ease-in-out;
-        }
-        @keyframes slideIn {
-            from { transform: translateY(-50px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
         }
         .modal-header {
             display: flex;
@@ -291,7 +281,7 @@
         }
         #interactive.viewport {
             width: 100%;
-            height: 280px;
+            height: 300px;
             position: relative;
             overflow: hidden;
             border-radius: 8px;
@@ -336,12 +326,12 @@
                     <form id="form-cadastro">
                         <div class="form-group">
                             <label for="product-code">Código do Item</label>
-                            <input type="number" id="product-code" required step="1" onkeydown="return event.key !== 'e' && event.key !== 'E'">
+                            <input type="number" id="product-code" required step="1">
                         </div>
                         <div class="form-group">
                             <label for="product-gtin">GTIN (Código de Barras)</label>
                             <input type="text" id="product-gtin" placeholder="Ex: 7891234567890">
-                            <button type="button" class="btn btn-camera" onclick="startScanner('product-gtin')">📷 Ler Cód. Barras (Câmera)</button>
+                            <button type="button" class="btn btn-camera" onclick="openCameraScanner('product-gtin')">📷 Escanear Câmera</button>
                         </div>
                         <div class="form-group">
                             <label for="product-description">Descrição do Item</label>
@@ -362,7 +352,7 @@
                         </div>
                     </form>
                     <div class="button-group" style="margin-top: 16px;">
-                        <input type="file" id="file-input" accept=".csv, .txt" style="display: none;">
+                        <input type="file" id="file-input" accept=".csv, .txt, text/plain, text/csv">
                         <button type="button" class="btn btn-secondary btn-full" id="btn-import-csv">Importar CSV</button>
                     </div>
                 </div>
@@ -382,12 +372,12 @@
                     <form id="form-estoque">
                         <div class="form-group">
                             <label for="inventory-code">Código do Item</label>
-                            <input type="number" id="inventory-code" required step="1" onkeydown="return event.key !== 'e' && event.key !== 'E'">
+                            <input type="number" id="inventory-code" required step="1">
                         </div>
                         <div class="form-group">
                             <label for="inventory-gtin">GTIN (Código de Barras)</label>
-                            <input type="text" id="inventory-gtin" placeholder="Passe o leitor USB ou digite o GTIN">
-                            <button type="button" class="btn btn-camera" onclick="startScanner('inventory-gtin')">📷 Ler Cód. Barras (Câmera)</button>
+                            <input type="text" id="inventory-gtin" placeholder="Passe o leitor ou digite o GTIN">
+                            <button type="button" class="btn btn-camera" onclick="openCameraScanner('inventory-gtin')">📷 Escanear Câmera</button>
                         </div>
                         <div class="form-group">
                             <label for="inventory-description">Descrição do Item</label>
@@ -449,25 +439,15 @@
         </div>
     </div>
 
-    <!-- Modal do Leitor de Câmera -->
-    <div id="scanner-modal-overlay" class="modal-overlay">
+    <!-- Modal Câmera Scanner Original -->
+    <div id="camera-modal" class="modal-overlay">
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
-                <h2>Aponte para o Código de Barras</h2>
-                <button class="close-button" onclick="stopScanner()">&times;</button>
+                <h2>Leitor de Código de Barras</h2>
+                <button class="close-button" onclick="closeCameraScanner()">&times;</button>
             </div>
             <div id="interactive" class="viewport"></div>
-            <button class="btn btn-secondary btn-full" onclick="stopScanner()" style="margin-top: 15px;">Cancelar</button>
-        </div>
-    </div>
-
-    <div id="report-modal-overlay" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modal-title"></h2>
-                <button class="close-button" onclick="closeModal()">&times;</button>
-            </div>
-            <div id="modal-body"></div>
+            <button class="btn btn-secondary btn-full" onclick="closeCameraScanner()" style="margin-top: 15px;">Fechar</button>
         </div>
     </div>
 
@@ -478,19 +458,19 @@
                 <button class="close-button" onclick="closeCsvSectorModal()">&times;</button>
             </div>
             <div class="button-group">
-                <button class="btn btn-primary" onclick="openFileInput('Açougue');">Açougue</button>
-                <button class="btn btn-secondary" onclick="openFileInput('Hortifruti');">Hortifruti</button>
-                <button class="btn btn-secondary" onclick="openFileInput('Outros');">Outros</button>
+                <button class="btn btn-primary" onclick="triggerFileInput('Açougue');">Açougue</button>
+                <button class="btn btn-secondary" onclick="triggerFileInput('Hortifruti');">Hortifruti</button>
+                <button class="btn btn-secondary" onclick="triggerFileInput('Outros');">Outros</button>
             </div>
         </div>
     </div>
 
     <script>
-        let targetInputId = null;
+        let currentScanTargetId = null;
 
-        function startScanner(inputId) {
-            targetInputId = inputId;
-            document.getElementById('scanner-modal-overlay').style.display = 'flex';
+        function openCameraScanner(targetId) {
+            currentScanTargetId = targetId;
+            document.getElementById('camera-modal').style.display = 'flex';
 
             Quagga.init({
                 inputStream: {
@@ -498,76 +478,103 @@
                     type: "LiveStream",
                     target: document.querySelector('#interactive'),
                     constraints: {
-                        facingMode: "environment" // Usa a câmera traseira no celular
-                    },
+                        facingMode: "environment"
+                    }
                 },
+                locator: {
+                    patchSize: "medium",
+                    halfSample: true
+                },
+                numOfWorkers: 2,
                 decoder: {
                     readers: ["ean_reader", "ean_8_reader", "code_128_reader", "upc_reader"]
-                }
+                },
+                locate: true
             }, function(err) {
                 if (err) {
-                    alert("Erro ao abrir a câmera: " + err);
-                    stopScanner();
+                    alert("Erro ao iniciar a câmera: " + err);
+                    closeCameraScanner();
                     return;
                 }
                 Quagga.start();
             });
 
-            Quagga.onDetected(onBarcodeScanned);
+            Quagga.onProcessed(function(result) {
+                var drawingCtx = Quagga.canvas.ctx.overlay,
+                    drawingCanvas = Quagga.canvas.dom.overlay;
+
+                if (result) {
+                    if (result.boxes) {
+                        drawingCtx.clearRect(0, 0, parseInt(drawingCanvas.getAttribute("width")), parseInt(drawingCanvas.getAttribute("height")));
+                        result.boxes.filter(function(box) {
+                            return box !== result.box;
+                        }).forEach(function(box) {
+                            Quagga.canvas.drawPath(box, {x: 0, y: 1}, drawingCtx, {color: "green", lineWidth: 2});
+                        });
+                    }
+
+                    if (result.box) {
+                        Quagga.canvas.drawPath(result.box, {x: 0, y: 1}, drawingCtx, {color: "#00F", lineWidth: 2});
+                    }
+
+                    if (result.codeResult && result.codeResult.code) {
+                        Quagga.canvas.drawPath(result.line, {x: 'x', y: 'y'}, drawingCtx, {color: 'red', lineWidth: 3});
+                    }
+                }
+            });
+
+            Quagga.onDetected(onBarcodeDetected);
         }
 
-        function onBarcodeScanned(result) {
-            const code = result.codeResult.code;
-            if (code && targetInputId) {
-                const inputElement = document.getElementById(targetInputId);
-                inputElement.value = code;
-                stopScanner();
+        function onBarcodeDetected(result) {
+            var code = result.codeResult.code;
+            if (code && currentScanTargetId) {
+                const targetInput = document.getElementById(currentScanTargetId);
+                targetInput.value = code;
+                closeCameraScanner();
 
-                // Dispara a busca automática se for na aba Estoque
-                if (targetInputId === 'inventory-gtin') {
+                if (currentScanTargetId === 'inventory-gtin') {
                     const event = new KeyboardEvent('keydown', { key: 'Enter' });
-                    inputElement.dispatchEvent(event);
+                    targetInput.dispatchEvent(event);
                 }
             }
         }
 
-        function stopScanner() {
-            Quagga.offDetected(onBarcodeScanned);
+        function closeCameraScanner() {
+            Quagga.offDetected(onBarcodeDetected);
             Quagga.stop();
-            document.getElementById('scanner-modal-overlay').style.display = 'none';
+            document.getElementById('camera-modal').style.display = 'none';
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            const saveToLocalStorage = (key, data) => {
-                try { localStorage.setItem(key, JSON.stringify(data)); } catch (e) { console.error(e); }
-            };
-
+            const saveToLocalStorage = (key, data) => localStorage.setItem(key, JSON.stringify(data));
             const loadFromLocalStorage = (key) => {
-                try {
-                    const data = localStorage.getItem(key);
-                    return data ? JSON.parse(data) : {};
-                } catch (e) { return {}; }
+                const data = localStorage.getItem(key);
+                return data ? JSON.parse(data) : {};
             };
 
             let products = loadFromLocalStorage('products');
             let inventory = loadFromLocalStorage('inventory');
-            let inventoryHistory = loadFromLocalStorage('inventoryHistory') || {};
             let currentFilter = 'Açougue';
+            let selectedImportSector = '';
 
             const tabButtons = document.querySelectorAll('.tab-button');
             const tabContents = document.querySelectorAll('.tab-content');
             const filterButtons = document.querySelectorAll('.toggle-button');
+
+            const fileInput = document.getElementById('file-input');
+            const btnImportCsv = document.getElementById('btn-import-csv');
+            const csvSectorModalOverlay = document.getElementById('csv-sector-modal-overlay');
 
             const inventoryCodeInput = document.getElementById('inventory-code');
             const inventoryGtinInput = document.getElementById('inventory-gtin');
             const inventoryDescriptionInput = document.getElementById('inventory-description');
             const inventoryQuantityInput = document.getElementById('inventory-quantity');
             const inventoryTotalInput = document.getElementById('inventory-total');
-            
+
             const productCodeInput = document.getElementById('product-code');
             const productGtinInput = document.getElementById('product-gtin');
             const productDescriptionInput = document.getElementById('product-description');
-            const productSectorInput = document.getElementById('product-sector');
 
             const showMessage = (type, content, tabId) => {
                 const messageDiv = document.getElementById(`message-${tabId}`);
@@ -579,8 +586,60 @@
                 }
             };
 
-            window.closeModal = () => document.getElementById('report-modal-overlay').style.display = 'none';
-            window.closeCsvSectorModal = () => document.getElementById('csv-sector-modal-overlay').style.display = 'none';
+            btnImportCsv.addEventListener('click', () => {
+                csvSectorModalOverlay.style.display = 'flex';
+            });
+
+            window.closeCsvSectorModal = () => {
+                csvSectorModalOverlay.style.display = 'none';
+            };
+
+            window.triggerFileInput = (sector) => {
+                selectedImportSector = sector;
+                closeCsvSectorModal();
+                fileInput.click();
+            };
+
+            fileInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    processCsvData(e.target.result, selectedImportSector);
+                };
+                reader.readAsText(file);
+            });
+
+            const processCsvData = (csvText, sector) => {
+                const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l !== '');
+                if (lines.length === 0) {
+                    showMessage('error', 'O arquivo está vazio.', 'cadastro');
+                    return;
+                }
+
+                let importedCount = 0;
+                lines.forEach((line, index) => {
+                    const cols = line.split(/;|,|\t/).map(c => c.replace(/"/g, '').trim());
+                    if (cols.length < 2) return;
+
+                    let code = cols[0].replace(/\D/g, ''); 
+                    let description = cols[1];
+                    let gtin = cols[2] ? cols[2].replace(/\D/g, '') : '';
+
+                    if (index === 0 && (code.toLowerCase().includes('cod') || description.toLowerCase().includes('desc'))) return;
+
+                    if (code && description) {
+                        products[code] = { codigo: code, gtin: gtin, descricao: description, setor: sector };
+                        importedCount++;
+                    }
+                });
+
+                saveToLocalStorage('products', products);
+                showMessage('success', `${importedCount} produto(s) importado(s) com sucesso!`, 'cadastro');
+                updateInventoryList();
+                fileInput.value = '';
+            };
 
             tabButtons.forEach(button => {
                 button.addEventListener('click', () => {
@@ -634,7 +693,6 @@
                 }
             };
 
-            // Leitura por scanner USB / Digitacao no GTIN na Aba Estoque
             inventoryGtinInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
@@ -662,7 +720,7 @@
                 const code = productCodeInput.value.trim();
                 const gtin = productGtinInput.value.trim();
                 const description = productDescriptionInput.value.trim();
-                const sector = productSectorInput.value.trim();
+                const sector = document.getElementById('product-sector').value;
 
                 products[code] = { codigo: code, gtin: gtin, descricao: description, setor: sector };
                 saveToLocalStorage('products', products);
