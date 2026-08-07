@@ -1,11 +1,10 @@
-<!DOCTYPE html>
+[source: 2]<!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciador de Estoque e Produtos</title>
-    <!-- BIBLIOTECA DA CÂMERA ATUALIZADA E ESTÁVEL -->
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script> 
+    <script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script> 
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -434,15 +433,9 @@
                     <div class="card-header">
                         <h2>Gerenciamento de Estoque</h2>
                         <div class="filter-buttons">
-                            <button class="toggle-button" data-filter="Açougue">
-                                Açougue
-                            </button>
-                            <button class="toggle-button" data-filter="Hortifruti">
-                                Hortifruti
-                            </button>
-                            <button class="toggle-button" data-filter="Outros">
-                                Outros
-                            </button>
+                            <button class="toggle-button" data-filter="Açougue">Açougue</button>
+                            <button class="toggle-button" data-filter="Hortifruti">Hortifruti</button>
+                            <button class="toggle-button" data-filter="Outros">Outros</button>
                         </div>
                     </div>
                     <div id="message-estoque" class="message"></div>
@@ -626,11 +619,10 @@
 
             const onScanSuccess = (decodedText, decodedResult) => {
                 document.getElementById(currentInputId).value = decodedText;
-                
                 scannerResultDiv.textContent = `Sucesso: ${decodedText}`;
                 
-                if (currentInputId === 'inventory-gtin' && typeof window.performGtinSearch === 'function') {
-                    window.performGtinSearch(); 
+                if (currentInputId === 'inventory-gtin') {
+                    performGtinSearch(); 
                 }
 
                 setTimeout(() => {
@@ -638,8 +630,7 @@
                 }, 500); 
             };
 
-            const onScanError = (errorMessage) => {
-            };
+            const onScanError = (errorMessage) => {};
 
             document.getElementById('scanner-title').textContent = "Leitor de Código de Barras";
             scannerResultDiv.textContent = 'Aguardando leitura...';
@@ -652,12 +643,9 @@
                 onScanError
             ).catch(err => {
                 scannerResultDiv.textContent = `Erro: ${err.message}. Verifique a permissão da câmera e se o site está em HTTPS.`;
-                
                 setTimeout(() => {
                     stopAndCloseScanner();
-                    if (typeof showMessage === 'function') {
-                        showMessage('error', 'Falha ao iniciar o leitor de código de barras. Verifique HTTPS e permissões.', tabId);
-                    }
+                    showMessage('error', 'Falha ao iniciar o leitor de código de barras. Verifique HTTPS e permissões.', tabId);
                 }, 4000); 
             });
         };
@@ -732,36 +720,6 @@
                     event.target.value = parts.join('.');
                 }
             });
-            
-            function detectDelimiter(csvText) {
-                const commonDelimiters = [',', ';', '\t', '|'];
-                const lines = csvText.trim().split('\n');
-
-                if (lines.length === 0) return ',';
-
-                const firstLine = lines[0];
-                let bestDelimiter = ',';
-                let maxCount = 0;
-
-                commonDelimiters.forEach(delimiter => {
-                    const count = (firstLine.match(new RegExp('\\' + delimiter, 'g')) || []).length;
-
-                    if (count > maxCount) {
-                        maxCount = count;
-                        bestDelimiter = delimiter;
-                    }
-                });
-
-                if (firstLine.includes(';') && maxCount === 0) {
-                    return ';';
-                }
-                
-                if (maxCount > 0) {
-                    return bestDelimiter;
-                }
-
-                return ',';
-            }
 
             const openModal = (title, content) => {
                 modalTitle.textContent = title;
@@ -902,7 +860,7 @@
             productGtinInput.addEventListener('input', updateSearchButtonState); 
             productDescriptionInput.addEventListener('input', updateSearchButtonState);
 
-            window.showMessage = (type, content, tabId) => {
+            const showMessage = (type, content, tabId) => {
                 const messageDiv = document.getElementById(`message-${tabId}`);
                 if (messageDiv) {
                     messageDiv.innerHTML = content;
@@ -1205,10 +1163,9 @@
                 reader.readAsText(file);
             });
 
-            // CORREÇÃO EXCLUSIVA APLICADA NO TRATAMENTO E LEITURA DO CSV:
+            // LEITOR DE CSV COMPATÍVEL RESTAURADO
             const processCsvData = (csvText, sector) => {
-                const delimiter = detectDelimiter(csvText);
-                const rawLines = csvText.split(/\r?\n/).filter(line => line.trim() !== '');
+                const rawLines = csvText.split('\n').filter(line => line.trim() !== '');
                 
                 if (rawLines.length === 0) {
                     showMessage('error', 'O arquivo CSV está vazio ou ilegível.', 'cadastro');
@@ -1216,59 +1173,40 @@
                     return;
                 }
 
-                const normalizeHeader = (h) => {
-                    return h.trim().toUpperCase()
-                            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-                            .replace(/[^A-Z0-9]/g, '');
-                };
-
-                const headerLine = rawLines[0];
-                const header = headerLine.split(delimiter).map(normalizeHeader); 
-
-                const codeIndex = header.findIndex(h => h === 'CODIGO' || h === 'COD' || h === 'ITEM');
-                const descIndex = header.findIndex(h => h === 'DESCRICAO' || h === 'PRODUTO' || h === 'NOME' || h === 'DESC');
-                const gtinIndex = header.findIndex(h => h === 'GTIN' || h === 'EAN' || h === 'BARRAS');
-
-                if (codeIndex === -1 || descIndex === -1) {
-                    showMessage('error', `Cabeçalhos necessários 'CÓDIGO' e 'DESCRIÇÃO' não encontrados. O delimitador detectado foi: '${delimiter}'.`, 'cadastro');
-                    fileInput.value = '';
-                    return;
-                }
-                
-                let lines = [...rawLines];
-                lines.shift();
-
-                const duplicates = [];
                 const productsToImport = [];
+                const duplicates = [];
 
-                for (const line of lines) {
-                    const data = line.split(delimiter).map(d => d.trim().replace(/^"(.*)"$/, '$1'));
+                for (let i = 0; i < rawLines.length; i++) {
+                    const line = rawLines[i].trim();
+                    if (!line) continue;
+
+                    // Divide por vírgula, ponto-e-vírgula ou tabulação de forma flexível
+                    const parts = line.split(/[;,/|\t]/).map(p => p.trim().replace(/^["']|["']$/g, ''));
                     
-                    if (data.length <= Math.max(codeIndex, descIndex)) continue; 
+                    if (parts.length >= 2) {
+                        const code = parts[0];
+                        const description = parts[1];
+                        const gtin = parts[2] || '';
 
-                    const code = data[codeIndex];
-                    const description = data[descIndex];
-                    const gtin = gtinIndex !== -1 && data[gtinIndex] ? data[gtinIndex] : ''; 
+                        // Ignora o cabeçalho se for texto
+                        if (i === 0 && isNaN(parseInt(code))) continue;
 
-                    const trimmedCode = code.trim();
-                    const trimmedGtin = gtin.trim();
-
-                    if (trimmedCode && description) {
-                        if (isNaN(parseInt(trimmedCode))) continue;
-                        
-                        if (products[trimmedCode]) {
-                            duplicates.push({ code: trimmedCode, description: products[trimmedCode].descricao }); 
-                        } else {
-                            productsToImport.push({ code: trimmedCode, description, sector, gtin: trimmedGtin }); 
+                        if (code && description) {
+                            if (products[code]) {
+                                duplicates.push({ code, description: products[code].descricao });
+                            } else {
+                                productsToImport.push({ code, description, sector, gtin });
+                            }
                         }
                     }
                 }
 
-                if (duplicates.length > 0) {
-                    let errorMessage = 'Não foi possível importar o arquivo. Os seguintes produtos já existem:<br><br>';
-                    duplicates.forEach(item => {
-                        errorMessage += `<strong>Código:</strong> ${item.code} - <strong>Descrição (já cadastrada):</strong> ${item.description}<br>`;
+                if (duplicates.length > 0 && productsToImport.length === 0) {
+                    let errorMessage = 'Os produtos deste arquivo já constam no sistema:<br><br>';
+                    duplicates.slice(0, 5).forEach(item => {
+                        errorMessage += `<strong>Código:</strong> ${item.code} - ${item.description}<br>`;
                     });
+                    if(duplicates.length > 5) errorMessage += `... e mais ${duplicates.length - 5} item(ns).`;
                     showMessage('error', errorMessage, 'cadastro');
                 } else {
                     productsToImport.forEach(item => {
@@ -1354,14 +1292,14 @@
             inventoryGtinInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    window.performGtinSearch();
+                    performGtinSearch();
                 }
             });
             inventoryGtinInput.addEventListener('blur', () => {
-                window.performGtinSearch();
+                performGtinSearch();
             });
 
-            window.performGtinSearch = () => {
+            const performGtinSearch = () => {
                 const gtin = inventoryGtinInput.value.trim();
                 if (gtin.length < 5) return; 
 
@@ -1451,7 +1389,7 @@
                     }
                 }
             });
-
+            
             exportCsvBtn.addEventListener('click', () => {
                 const filteredProducts = currentFilter ? Object.values(products).filter(p => p.setor === currentFilter) : Object.values(products);
                 const itemsWithStock = filteredProducts.map(p => {
@@ -1682,13 +1620,11 @@
             });
 
             document.querySelector('.tab-content[data-tab="estoque"]').classList.add('active');
-            
             filterButtons.forEach(btn => btn.classList.remove('active'));
             acougueFilterBtn.classList.add('active');
             currentFilter = 'Açougue';
 
             updateInventoryList();
-
             updateSearchButtonState();
         });
     </script>
