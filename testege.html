@@ -1205,9 +1205,10 @@
                 reader.readAsText(file);
             });
 
+            // CORREÇÃO EXCLUSIVA APLICADA NO TRATAMENTO E LEITURA DO CSV:
             const processCsvData = (csvText, sector) => {
                 const delimiter = detectDelimiter(csvText);
-                const rawLines = csvText.split('\n').filter(line => line.trim() !== '');
+                const rawLines = csvText.split(/\r?\n/).filter(line => line.trim() !== '');
                 
                 if (rawLines.length === 0) {
                     showMessage('error', 'O arquivo CSV está vazio ou ilegível.', 'cadastro');
@@ -1215,12 +1216,18 @@
                     return;
                 }
 
-                const headerLine = rawLines[0];
-                const header = headerLine.split(delimiter).map(h => h.trim().toUpperCase().replace(/[^A-Z0-9À-ÖØ-öø-ÿ]/g, '')); 
+                const normalizeHeader = (h) => {
+                    return h.trim().toUpperCase()
+                            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                            .replace(/[^A-Z0-9]/g, '');
+                };
 
-                const codeIndex = header.indexOf('CÓDIGO');
-                const descIndex = header.indexOf('DESCRIÇÃO');
-                const gtinIndex = header.indexOf('GTIN') !== -1 ? header.indexOf('GTIN') : header.indexOf('EAN'); 
+                const headerLine = rawLines[0];
+                const header = headerLine.split(delimiter).map(normalizeHeader); 
+
+                const codeIndex = header.findIndex(h => h === 'CODIGO' || h === 'COD' || h === 'ITEM');
+                const descIndex = header.findIndex(h => h === 'DESCRICAO' || h === 'PRODUTO' || h === 'NOME' || h === 'DESC');
+                const gtinIndex = header.findIndex(h => h === 'GTIN' || h === 'EAN' || h === 'BARRAS');
 
                 if (codeIndex === -1 || descIndex === -1) {
                     showMessage('error', `Cabeçalhos necessários 'CÓDIGO' e 'DESCRIÇÃO' não encontrados. O delimitador detectado foi: '${delimiter}'.`, 'cadastro');
@@ -1228,22 +1235,20 @@
                     return;
                 }
                 
-                let lines = rawLines;
-                if (header.includes('CÓDIGO') && header.includes('DESCRIÇÃO')) {
-                    lines.shift();
-                }
+                let lines = [...rawLines];
+                lines.shift();
 
                 const duplicates = [];
                 const productsToImport = [];
 
                 for (const line of lines) {
-                    const data = line.split(delimiter).map(d => d.trim());
+                    const data = line.split(delimiter).map(d => d.trim().replace(/^"(.*)"$/, '$1'));
                     
                     if (data.length <= Math.max(codeIndex, descIndex)) continue; 
 
                     const code = data[codeIndex];
                     const description = data[descIndex];
-                    const gtin = gtinIndex !== -1 ? data[gtinIndex] : ''; 
+                    const gtin = gtinIndex !== -1 && data[gtinIndex] ? data[gtinIndex] : ''; 
 
                     const trimmedCode = code.trim();
                     const trimmedGtin = gtin.trim();
