@@ -423,7 +423,7 @@
                         </div>
                     </form>
                     <div class="button-group" style="margin-top: 16px;">
-                        <input type="file" id="file-input" accept=".csv" style="display: none;">
+                        <input type="file" id="file-input" accept=".csv, .txt, text/plain, text/csv">
                         <button type="button" class="btn btn-secondary btn-full" id="btn-import-csv">Importar CSV</button>
                     </div>
                 </div>
@@ -732,36 +732,6 @@
                     event.target.value = parts.join('.');
                 }
             });
-            
-            function detectDelimiter(csvText) {
-                const commonDelimiters = [',', ';', '\t', '|'];
-                const lines = csvText.trim().split('\n');
-
-                if (lines.length === 0) return ',';
-
-                const firstLine = lines[0];
-                let bestDelimiter = ',';
-                let maxCount = 0;
-
-                commonDelimiters.forEach(delimiter => {
-                    const count = (firstLine.match(new RegExp('\\' + delimiter, 'g')) || []).length;
-
-                    if (count > maxCount) {
-                        maxCount = count;
-                        bestDelimiter = delimiter;
-                    }
-                });
-
-                if (firstLine.includes(';') && maxCount === 0) {
-                    return ';';
-                }
-                
-                if (maxCount > 0) {
-                    return bestDelimiter;
-                }
-
-                return ',';
-            }
 
             const openModal = (title, content) => {
                 modalTitle.textContent = title;
@@ -1187,99 +1157,49 @@
             window.openFileInput = (sector) => {
                 selectedImportSector = sector;
                 closeCsvSectorModal();
-                fileInput.value = ''; 
                 fileInput.click();
             };
 
             fileInput.addEventListener('change', (event) => {
                 const file = event.target.files[0];
-                if (!file) {
-                    return;
-                }
+                if (!file) return;
 
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    const contents = e.target.result;
-                    processCsvData(contents, selectedImportSector);
+                    processCsvData(e.target.result, selectedImportSector);
                 };
                 reader.readAsText(file);
             });
 
             const processCsvData = (csvText, sector) => {
-                const delimiter = detectDelimiter(csvText);
-                const rawLines = csvText.split('\n').filter(line => line.trim() !== '');
-                
-                if (rawLines.length === 0) {
-                    showMessage('error', 'O arquivo CSV está vazio ou ilegível.', 'cadastro');
+                const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l !== '');
+                if (lines.length === 0) {
+                    showMessage('error', 'O arquivo está vazio.', 'cadastro');
                     fileInput.value = '';
                     return;
                 }
 
-                const headerLine = rawLines[0];
-                const header = headerLine.split(delimiter).map(h => h.trim().toUpperCase().replace(/[^A-Z0-9À-ÖØ-öø-ÿ]/g, '')); 
+                let importedCount = 0;
+                lines.forEach((line, index) => {
+                    const cols = line.split(/;|,|\t/).map(c => c.replace(/"/g, '').trim());
+                    if (cols.length < 2) return;
 
-                const codeIndex = header.indexOf('CÓDIGO');
-                const descIndex = header.indexOf('DESCRIÇÃO');
-                const gtinIndex = header.indexOf('GTIN') !== -1 ? header.indexOf('GTIN') : header.indexOf('EAN'); 
+                    let code = cols[0].replace(/\D/g, ''); 
+                    let description = cols[1];
+                    let gtin = cols[2] ? cols[2].replace(/\D/g, '') : '';
 
-                if (codeIndex === -1 || descIndex === -1) {
-                    showMessage('error', `Cabeçalhos necessários 'CÓDIGO' e 'DESCRIÇÃO' não encontrados. O delimitador detectado foi: '${delimiter}'.`, 'cadastro');
-                    fileInput.value = '';
-                    return;
-                }
-                
-                let lines = rawLines;
-                if (header.includes('CÓDIGO') && header.includes('DESCRIÇÃO')) {
-                    lines.shift();
-                }
+                    if (index === 0 && (code.toLowerCase().includes('cod') || description.toLowerCase().includes('desc'))) return;
 
-                const duplicates = [];
-                const productsToImport = [];
-
-                for (const line of lines) {
-                    const data = line.split(delimiter).map(d => d.trim());
-                    
-                    if (data.length <= Math.max(codeIndex, descIndex)) continue; 
-
-                    const code = data[codeIndex];
-                    const description = data[descIndex];
-                    const gtin = gtinIndex !== -1 ? data[gtinIndex] : ''; 
-
-                    const trimmedCode = code.trim();
-                    const trimmedGtin = gtin.trim();
-
-                    if (trimmedCode && description) {
-                        if (isNaN(parseInt(trimmedCode))) continue;
-                        
-                        if (products[trimmedCode]) {
-                            duplicates.push({ code: trimmedCode, description: products[trimmedCode].descricao }); 
-                        } else {
-                            productsToImport.push({ code: trimmedCode, description, sector, gtin: trimmedGtin }); 
-                        }
+                    if (code && description) {
+                        products[code] = { codigo: code, gtin: gtin, descricao: description, setor: sector };
+                        importedCount++;
                     }
-                }
+                });
 
-                if (duplicates.length > 0) {
-                    let errorMessage = 'Não foi possível importar o arquivo. Os seguintes produtos já existem:<br><br>';
-                    duplicates.forEach(item => {
-                        errorMessage += `<strong>Código:</strong> ${item.code} - <strong>Descrição (já cadastrada):</strong> ${item.description}<br>`;
-                    });
-                    showMessage('error', errorMessage, 'cadastro');
-                } else {
-                    productsToImport.forEach(item => {
-                        products[item.code] = {
-                            codigo: item.code,
-                            gtin: item.gtin, 
-                            descricao: item.description,
-                            setor: item.sector
-                        };
-                    });
-                    saveToLocalStorage('products', products);
-                    showMessage('success', `${productsToImport.length} produto(s) importado(s) para o setor ${selectedImportSector} com sucesso!`, 'cadastro');
-                    updateInventoryList();
-                }
-                
-                fileInput.value = ''; 
+                saveToLocalStorage('products', products);
+                showMessage('success', `${importedCount} produto(s) importado(s) para o setor ${sector} com sucesso!`, 'cadastro');
+                updateInventoryList();
+                fileInput.value = '';
             };
 
             formEstoque.addEventListener('submit', (e) => {
