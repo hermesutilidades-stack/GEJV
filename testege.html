@@ -1171,14 +1171,32 @@
                 reader.readAsText(file);
             });
 
-            // Função auxiliar para converter notação científica (ex: 7,89806E+12 ou 7.89806E+12) para GTIN
+            // Função avançada para converter notação científica (ex: 7.89806E+12 ou 7,89806E+12) sem perder precisão de dígitos
             const parseScientificGtin = (val) => {
                 if (!val) return '';
-                let cleanVal = val.trim().replace(',', '.'); 
+                let cleanVal = val.trim().replace(/"/g, '').replace(/'/g, '');
+                
+                // Trata notação científica
                 if (cleanVal.toUpperCase().includes('E+')) {
-                    let num = Number(cleanVal);
-                    return isNaN(num) ? '' : BigInt(Math.round(num)).toString();
+                    const parts = cleanVal.toUpperCase().split('E+');
+                    let mantissa = parts[0].replace(',', '.');
+                    let exponent = parseInt(parts[1], 10);
+                    
+                    let dotIndex = mantissa.indexOf('.');
+                    if (dotIndex === -1) {
+                        mantissa += '0'.repeat(exponent);
+                    } else {
+                        let decimals = mantissa.length - dotIndex - 1;
+                        mantissa = mantissa.replace('.', '');
+                        if (exponent >= decimals) {
+                            mantissa += '0'.repeat(exponent - decimals);
+                        } else {
+                            mantissa = mantissa.substring(0, dotIndex + exponent);
+                        }
+                    }
+                    return mantissa.replace(/\D/g, '');
                 }
+                
                 return cleanVal.replace(/\D/g, '');
             };
 
@@ -1193,29 +1211,29 @@
                 let importedCount = 0;
 
                 lines.forEach((line, index) => {
-                    // Detecta se o separador principal do arquivo é ponto e vírgula ou tabulação para não quebrar na vírgula do número
+                    // Identifica delimitador (Ponto e Vírgula, Tab ou Vírgula)
                     let delimiter = ';';
                     if (line.includes('\t')) delimiter = '\t';
                     else if (line.includes(';') || !line.includes(',')) delimiter = ';';
 
-                    const cols = line.split(delimiter).map(c => c.replace(/"/g, '').trim());
+                    const cols = line.split(delimiter).map(c => c.replace(/^"/, '').replace(/"$/, '').trim());
                     if (cols.length < 1) return;
 
-                    // Coluna A (1ª): Código do Item
+                    // Coluna A (1ª): Código
                     let code = cols[0] ? cols[0].replace(/\D/g, '') : ''; 
                     
                     // Coluna B (2ª): GTIN
                     let gtin = cols[1] ? parseScientificGtin(cols[1]) : '';
                     
-                    // Coluna C (3ª): Descrição do Item
+                    // Coluna C (3ª): Descrição
                     let description = cols[2] ? cols[2].trim() : '';
 
-                    // Ignora o cabeçalho caso exista
+                    // Ignora cabeçalhos
                     if (index === 0 && (code.toLowerCase().includes('cod') || description.toLowerCase().includes('desc'))) {
                         return;
                     }
 
-                    // Importa se possuir Código e Descrição (GTIN é opcional)
+                    // Importa apenas se possuir Código e Descrição válidos
                     if (code && description) {
                         products[code] = { 
                             codigo: code, 
