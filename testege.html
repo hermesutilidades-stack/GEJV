@@ -545,20 +545,6 @@
         </div>
     </div>
 
-    <div id="csv-sector-modal-overlay" class="modal-overlay">
-        <div class="modal-content" style="max-width: 400px; text-align: center;">
-            <div class="modal-header">
-                <h2 id="csv-sector-title">Selecione o setor para o XLSX</h2>
-                <button class="close-button" onclick="closeCsvSectorModal()">&times;</button>
-            </div>
-            <div class="button-group">
-                <button class="btn btn-primary" onclick="openFileInput('Açougue');">Açougue</button>
-                <button class="btn btn-secondary" onclick="openFileInput('Hortifruti');">Hortifruti</button>
-                <button class="btn btn-secondary" onclick="openFileInput('Outros');">Outros</button>
-            </div>
-        </div>
-    </div>
-
     <div id="scanner-modal-overlay" class="modal-overlay">
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
@@ -632,6 +618,7 @@
             let products = loadFromLocalStorage('products', {}); 
             let inventory = loadFromLocalStorage('inventory', {});
             let currentFilter = 'Açougue';
+            let selectedImportSector = '';
 
             const tabButtons = document.querySelectorAll('.tab-button');
             const tabContents = document.querySelectorAll('.tab-content');
@@ -655,7 +642,6 @@
             const modalTitle = document.getElementById('modal-title');
             const modalBody = document.getElementById('modal-body');
             const sectorSelectModalOverlay = document.getElementById('sector-select-modal-overlay');
-            const csvSectorModalOverlay = document.getElementById('csv-sector-modal-overlay');
 
             const inventoryCodeInput = document.getElementById('inventory-code');
             const inventoryGtinInput = document.getElementById('inventory-gtin'); 
@@ -677,7 +663,6 @@
 
             window.closeModal = () => { reportModalOverlay.style.display = 'none'; };
             window.closeSectorModal = () => { sectorSelectModalOverlay.style.display = 'none'; };
-            window.closeCsvSectorModal = () => { csvSectorModalOverlay.style.display = 'none'; };
 
             window.selectZeroStockItem = (code, description, gtin, sismo) => {
                 closeModal();
@@ -820,7 +805,6 @@
                     const qtdLoja = inventoryItem !== undefined ? inventoryItem.loja : null;
                     const qtdSismo = parseFloat(product.sismo || 0);
 
-                    // Lista de contados
                     if (qtdLoja !== null) {
                         const li = document.createElement('li');
                         li.className = 'list-item';
@@ -838,7 +822,6 @@
                         inventoryList.appendChild(li);
                     }
 
-                    // Tabela do Relatório
                     const trReport = document.createElement('tr');
                     const contadoLoja = qtdLoja !== null ? qtdLoja : 0;
                     const diferenca = parseFloat((contadoLoja - qtdSismo).toFixed(2));
@@ -913,14 +896,16 @@
                 }
             });
 
-            importXlsxBtn.addEventListener('click', () => { openCsvSectorModal(); });
-
-            let selectedImportSector = '';
-            window.openFileInput = (sector) => {
-                selectedImportSector = sector;
-                closeCsvSectorModal();
+            // BOTÃO IMPORTAR XLSX (CORRIGIDO)
+            importXlsxBtn.addEventListener('click', () => {
+                const sectorToUse = productSectorInput.value || currentFilter;
+                if (!sectorToUse) {
+                    showMessage('error', 'Selecione um setor antes de importar.', 'cadastro');
+                    return;
+                }
+                selectedImportSector = sectorToUse;
                 fileInput.click();
-            };
+            });
 
             fileInput.addEventListener('change', (event) => {
                 const file = event.target.files[0];
@@ -949,18 +934,14 @@
                 rows.forEach((row, index) => {
                     if (!row || row.length === 0) return;
 
-                    // Coluna A (1ª): Código
                     let code = row[0] ? String(row[0]).replace(/\D/g, '').trim() : '';
-                    // Coluna B (2ª): GTIN
                     let gtin = row[1] ? String(row[1]).replace(/\D/g, '').trim() : '';
-                    // Coluna C (3ª): Descrição
                     let description = row[2] ? String(row[2]).trim() : '';
-                    // Coluna D (4ª): Quantidade SISMO (opcional no Excel)
                     let sismoVal = row[3] ? parseFloat(String(row[3]).replace(',', '.')) : 0;
                     if (isNaN(sismoVal)) sismoVal = 0;
 
                     if (index === 0 && (code.toLowerCase().includes('cod') || description.toLowerCase().includes('desc'))) {
-                        return; // Ignora cabeçalho
+                        return;
                     }
 
                     if (code && description) {
