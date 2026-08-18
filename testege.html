@@ -6,6 +6,8 @@
     <title>Gerenciador de Estoque e Produtos</title>
     <!-- BIBLIOTECA DA CÂMERA ATUALIZADA E ESTÁVEL -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script> 
+    <!-- BIBLIOTECA PARA LER ARQUIVOS EXCEL (.XLSX) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -423,8 +425,8 @@
                         </div>
                     </form>
                     <div class="button-group" style="margin-top: 16px;">
-                        <input type="file" id="file-input" accept=".csv, .txt, text/plain, text/csv" style="display: none;">
-                        <button type="button" class="btn btn-secondary btn-full" id="btn-import-csv">Importar CSV</button>
+                        <input type="file" id="file-input" accept=".xlsx, .xls" style="display: none;">
+                        <button type="button" class="btn btn-secondary btn-full" id="btn-import-xlsx">Importar XLSX</button>
                     </div>
                 </div>
             </div>
@@ -561,7 +563,7 @@
     <div id="csv-sector-modal-overlay" class="modal-overlay">
         <div class="modal-content" style="max-width: 400px; text-align: center;">
             <div class="modal-header">
-                <h2 id="csv-sector-title">Selecione o setor para o CSV</h2>
+                <h2 id="csv-sector-title">Selecione o setor para o XLSX</h2>
                 <button class="close-button" onclick="closeCsvSectorModal()">&times;</button>
             </div>
             <div class="button-group">
@@ -691,7 +693,7 @@
             const tabContents = document.querySelectorAll('.tab-content');
             const filterButtons = document.querySelectorAll('.toggle-button');
             const acougueFilterBtn = document.querySelector('[data-filter="Açougue"]');
-            const importCsvBtn = document.getElementById('btn-import-csv');
+            const importXlsxBtn = document.getElementById('btn-import-xlsx');
             const fileInput = document.getElementById('file-input');
             const clearProductsBySectorBtn = document.getElementById('clear-products-by-sector-btn');
 
@@ -1148,7 +1150,7 @@
                 }
             };
 
-            importCsvBtn.addEventListener('click', () => {
+            importXlsxBtn.addEventListener('click', () => {
                 openCsvSectorModal();
             });
 
@@ -1166,43 +1168,27 @@
 
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    processCsvData(e.target.result, selectedImportSector);
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array', raw: false });
+                        
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        
+                        // Converte para matriz mantendo o texto formatado exato da célula
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false });
+                        
+                        processXlsxData(jsonData, selectedImportSector);
+                    } catch (err) {
+                        console.error(err);
+                        showMessage('error', 'Erro ao processar a planilha. Certifique-se de que é um arquivo .xlsx/.xls válido.', 'cadastro');
+                    }
                 };
-                reader.readAsText(file);
+                reader.readAsArrayBuffer(file);
             });
 
-            // Função avançada para converter notação científica (ex: 7.89806E+12 ou 7,89806E+12) sem perder precisão de dígitos
-            const parseScientificGtin = (val) => {
-                if (!val) return '';
-                let cleanVal = val.trim().replace(/"/g, '').replace(/'/g, '');
-                
-                // Trata notação científica
-                if (cleanVal.toUpperCase().includes('E+')) {
-                    const parts = cleanVal.toUpperCase().split('E+');
-                    let mantissa = parts[0].replace(',', '.');
-                    let exponent = parseInt(parts[1], 10);
-                    
-                    let dotIndex = mantissa.indexOf('.');
-                    if (dotIndex === -1) {
-                        mantissa += '0'.repeat(exponent);
-                    } else {
-                        let decimals = mantissa.length - dotIndex - 1;
-                        mantissa = mantissa.replace('.', '');
-                        if (exponent >= decimals) {
-                            mantissa += '0'.repeat(exponent - decimals);
-                        } else {
-                            mantissa = mantissa.substring(0, dotIndex + exponent);
-                        }
-                    }
-                    return mantissa.replace(/\D/g, '');
-                }
-                
-                return cleanVal.replace(/\D/g, '');
-            };
-
-            const processCsvData = (csvText, sector) => {
-                const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l !== '');
-                if (lines.length === 0) {
+            const processXlsxData = (rows, sector) => {
+                if (!rows || rows.length === 0) {
                     showMessage('error', 'O arquivo está vazio.', 'cadastro');
                     fileInput.value = '';
                     return;
@@ -1210,25 +1196,19 @@
 
                 let importedCount = 0;
 
-                lines.forEach((line, index) => {
-                    // Identifica delimitador (Ponto e Vírgula, Tab ou Vírgula)
-                    let delimiter = ';';
-                    if (line.includes('\t')) delimiter = '\t';
-                    else if (line.includes(';') || !line.includes(',')) delimiter = ';';
-
-                    const cols = line.split(delimiter).map(c => c.replace(/^"/, '').replace(/"$/, '').trim());
-                    if (cols.length < 1) return;
+                rows.forEach((row, index) => {
+                    if (!row || row.length === 0) return;
 
                     // Coluna A (1ª): Código
-                    let code = cols[0] ? cols[0].replace(/\D/g, '') : ''; 
+                    let code = row[0] ? String(row[0]).replace(/\D/g, '').trim() : '';
                     
-                    // Coluna B (2ª): GTIN
-                    let gtin = cols[1] ? parseScientificGtin(cols[1]) : '';
+                    // Coluna B (2ª): GTIN (lido exatamente como texto puro sem notação científica)
+                    let gtin = row[1] ? String(row[1]).replace(/\D/g, '').trim() : '';
                     
                     // Coluna C (3ª): Descrição
-                    let description = cols[2] ? cols[2].trim() : '';
+                    let description = row[2] ? String(row[2]).trim() : '';
 
-                    // Ignora cabeçalhos
+                    // Ignora linha de cabeçalho
                     if (index === 0 && (code.toLowerCase().includes('cod') || description.toLowerCase().includes('desc'))) {
                         return;
                     }
@@ -1246,7 +1226,7 @@
                 });
 
                 saveToLocalStorage('products', products);
-                showMessage('success', `${importedCount} produto(s) importado(s) para o setor ${sector} com sucesso!`, 'cadastro');
+                showMessage('success', `${importedCount} produto(s) importado(s) da planilha para o setor ${sector} com sucesso!`, 'cadastro');
                 updateInventoryList();
                 fileInput.value = '';
             };
