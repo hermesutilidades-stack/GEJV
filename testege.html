@@ -27,6 +27,7 @@
             border-radius: 12px;
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
             padding: 24px;
+            box-sizing: border-box;
         }
         .header h1 {
             font-size: 2rem;
@@ -40,10 +41,15 @@
             margin-top: 4px;
             margin-bottom: 24px;
         }
+
+        /* NAVEGAÇÃO DE ABAS COM ROLAGEM MOBILE */
         .tab-buttons {
             display: flex;
             border-bottom: 1px solid #e2e8f0;
             margin-bottom: 24px;
+            overflow-x: auto;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
         }
         .tab-button {
             padding: 12px 16px;
@@ -55,6 +61,7 @@
             color: #64748b;
             position: relative;
             outline: none;
+            flex: 0 0 auto;
         }
         .tab-button.active {
             color: #007bff;
@@ -91,7 +98,7 @@
             gap: 8px;
         }
         .toggle-button {
-            padding: 6px 12px;
+            padding: 8px 14px;
             background-color: #e2e8f0;
             border-radius: 20px;
             border: none;
@@ -221,8 +228,41 @@
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .close-button { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #888; }
         
-        /* CABEÇALHO DE IMPRESSÃO EXCLUSIVO DO PDF */
         .print-header { display: none; }
+
+        /* REGRAS DE ADAPTAÇÃO PARA TELA DE CELULAR */
+        @media (max-width: 600px) {
+            body {
+                padding: 8px;
+            }
+            .container {
+                padding: 16px;
+            }
+            .card {
+                padding: 16px;
+            }
+            .card-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+            /* Botões do setor um embaixo do outro no celular */
+            .filter-buttons {
+                flex-direction: column;
+                width: 100%;
+            }
+            .toggle-button {
+                width: 100%;
+                text-align: center;
+                box-sizing: border-box;
+            }
+            #btn-search-product {
+                width: 100%;
+            }
+            .button-group .btn {
+                width: 100%;
+            }
+        }
 
         @media print {
             body { background-color: #fff; padding: 0; color: #000; }
@@ -368,16 +408,15 @@
                     <button type="button" class="btn btn-secondary" id="btn-relatorio-geral">Relatório Geral de Produtos</button>
                 </div>
 
-                <div class="sort-bar" style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
-                    <span style="font-weight: 600; font-size: 0.9rem;">Ordenar/Organizar por:</span>
+                <div class="sort-bar" style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <span style="font-weight: 600; font-size: 0.9rem;">Ordenar por:</span>
                     <button type="button" class="btn btn-primary btn-pill" id="btn-sort-alpha">🔤 Ordem Alfabética</button>
                     <button type="button" class="btn btn-secondary btn-pill" id="btn-sort-status">📊 Separar (Saída / Entrada / OK)</button>
                 </div>
 
-                <!-- CABEÇALHO FORMATADO PARA O PDF DA PRIMEIRA IMAGEM -->
                 <div class="print-header" id="pdf-header"></div>
 
-                <div id="report-content">
+                <div id="report-content" style="overflow-x: auto;">
                     <table>
                         <thead>
                             <tr>
@@ -410,7 +449,7 @@
         </div>
     </div>
 
-    <!-- MODAL HISTÓRICO -->
+    <!-- MODAIS E SCRIPTS MANTIDOS INTEGRALMENTE -->
     <div id="modal-history" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
@@ -432,7 +471,6 @@
         </div>
     </div>
 
-    <!-- MODAL ITENS ZERADOS -->
     <div id="modal-zero-stock" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
@@ -444,7 +482,6 @@
         </div>
     </div>
 
-    <!-- MODAL LEITOR CÓDIGO BARRAS -->
     <div id="modal-barcode" class="modal-overlay">
         <div class="modal-content" style="max-width: 450px; text-align: center;">
             <div class="modal-header">
@@ -479,7 +516,6 @@
             setTimeout(() => { el.style.display = 'none'; }, 3000);
         }
 
-        // CONTROL DE ABAS
         const tabButtons = document.querySelectorAll('.tab-button');
         const tabContents = document.querySelectorAll('.tab-content');
 
@@ -496,7 +532,6 @@
             });
         });
 
-        // FILTROS DE SETOR NO ESTOQUE
         const toggleButtons = document.querySelectorAll('.toggle-button');
         toggleButtons.forEach(btn => {
             btn.addEventListener('click', () => {
@@ -513,7 +548,6 @@
             });
         });
 
-        // BUSCA PRODUTO
         const productCodeInput = document.getElementById('product-code');
         const productGtinInput = document.getElementById('product-gtin');
         const btnSearchProduct = document.getElementById('btn-search-product');
@@ -541,7 +575,6 @@
             }
         });
 
-        // SALVAR PRODUTO
         document.getElementById('form-cadastro').addEventListener('submit', (e) => {
             e.preventDefault();
             const code = document.getElementById('product-code').value.trim();
@@ -563,7 +596,6 @@
             checkSearchButtonState();
         });
 
-        // EXCLUIR PRODUTO
         document.getElementById('btn-delete-product').addEventListener('click', () => {
             const code = document.getElementById('product-code').value.trim();
             if (!code) return showMessage('message-cadastro', 'Informe o Código.', 'error');
@@ -577,7 +609,6 @@
             }
         });
 
-        // IMPORTAR XLSX
         document.getElementById('btn-import-xlsx').addEventListener('click', () => document.getElementById('file-input').click());
         document.getElementById('file-input').addEventListener('change', (e) => {
             const file = e.target.files[0];
@@ -617,7 +648,6 @@
             e.target.value = '';
         });
 
-        // PREENCHIMENTO AUTOMÁTICO NA CONTAGEM
         const inventoryCodeInput = document.getElementById('inventory-code');
         const inventoryGtinInput = document.getElementById('inventory-gtin');
         function autoFillInventory() {
@@ -634,7 +664,6 @@
         inventoryCodeInput.addEventListener('blur', autoFillInventory);
         inventoryGtinInput.addEventListener('blur', autoFillInventory);
 
-        // SALVAR CONTAGEM
         document.getElementById('form-estoque').addEventListener('submit', (e) => {
             e.preventDefault();
             const code = document.getElementById('inventory-code').value.trim();
@@ -712,7 +741,6 @@
             });
         }
 
-        // ABRIR HISTÓRICO
         function openHistoryModal(code) {
             const item = inventory.find(i => String(i.code) === String(code));
             if (!item || !item.history) return;
@@ -738,7 +766,6 @@
 
         function closeHistoryModal() { document.getElementById('modal-history').style.display = 'none'; }
 
-        // EXIBIR ITENS NÃO CONTADOS
         document.getElementById('open-zero-stock').addEventListener('click', () => {
             const zeroListEl = document.getElementById('zero-stock-list');
             zeroListEl.innerHTML = '';
@@ -770,7 +797,6 @@
 
         function closeZeroStockModal() { document.getElementById('modal-zero-stock').style.display = 'none'; }
 
-        // ORGANIZAÇÃO DO RELATÓRIO
         document.getElementById('btn-sort-alpha').addEventListener('click', () => {
             reportSortType = 'alpha';
             document.getElementById('btn-sort-alpha').className = 'btn btn-primary btn-pill';
@@ -867,10 +893,8 @@
                 ok.forEach(item => { appendReportRow(tbody, item); totalSysmo += item.sysmo; totalLoja += item.countedVal; });
             }
 
-            // TOTAL NO FINAL DO RELATÓRIO PRINCIPAL
             document.getElementById('report-summary').innerHTML = `Total SYSMO: ${totalSysmo} | Total Contado na Loja: ${totalLoja}`;
 
-            // ATUALIZA CABEÇALHO PARA IMPRESSÃO PDF
             const orgText = reportSortType === 'alpha' ? 'Ordem Alfabética' : 'Separado por Tipo';
             document.getElementById('pdf-header').innerHTML = `
                 <h2>Relatório de Diferença de Estoque</h2>
@@ -901,7 +925,6 @@
             tbody.appendChild(tr);
         }
 
-        // EXPORTAÇÃO CSV
         document.getElementById('btn-export-csv').addEventListener('click', () => {
             let data = getReportData();
             if (data.length === 0) return alert("Sem dados para exportar!");
@@ -916,12 +939,10 @@
             link.click();
         });
 
-        // IMPRESSÃO PDF
         document.getElementById('btn-export-pdf').addEventListener('click', () => {
             window.print();
         });
 
-        // RELATÓRIO GERAL APENAS COM PRODUTOS CADASTRADOS (CÓDIGO, GTIN, DESCRIÇÃO, QTD SYSMO)
         document.getElementById('btn-relatorio-geral').addEventListener('click', () => {
             let filterText = currentSectorFilter ? ` (${currentSectorFilter})` : ' (Geral)';
             let list = currentSectorFilter ? products.filter(p => p.sector === currentSectorFilter) : products;
@@ -983,7 +1004,6 @@
             reportWin.document.close();
         });
 
-        // LIMPEZA
         document.getElementById('btn-clear-inventory').addEventListener('click', () => {
             if (confirm("Apagar todas as contagens gravadas na Loja?")) {
                 inventory = [];
@@ -1004,7 +1024,6 @@
             }
         });
 
-        // LEITOR BARCODE
         function startBarcodeScan(inputId) {
             activeBarcodeTargetInputId = inputId;
             document.getElementById('modal-barcode').style.display = 'flex';
