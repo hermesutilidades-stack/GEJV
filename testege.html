@@ -230,23 +230,16 @@
         
         .print-header { display: none; }
 
-        /* REGRAS DE ADAPTAÇÃO PARA TELA DE CELULAR */
+        /* REGRAS DE ADAPTAÇÃO PARA CELULAR */
         @media (max-width: 600px) {
-            body {
-                padding: 8px;
-            }
-            .container {
-                padding: 16px;
-            }
-            .card {
-                padding: 16px;
-            }
+            body { padding: 8px; }
+            .container { padding: 16px; }
+            .card { padding: 16px; }
             .card-header {
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 12px;
             }
-            /* Botões do setor um embaixo do outro no celular */
             .filter-buttons {
                 flex-direction: column;
                 width: 100%;
@@ -256,12 +249,8 @@
                 text-align: center;
                 box-sizing: border-box;
             }
-            #btn-search-product {
-                width: 100%;
-            }
-            .button-group .btn {
-                width: 100%;
-            }
+            #btn-search-product { width: 100%; }
+            .button-group .btn { width: 100%; }
         }
 
         @media print {
@@ -270,15 +259,9 @@
             .header, .tab-buttons, .button-group, .sort-bar, .card > h2, .toggle-button, .filter-buttons { display: none !important; }
             .tab-content { display: none !important; }
             .tab-content[data-tab="relatorio"] { display: block !important; }
-            
-            .print-header {
-                display: block !important;
-                text-align: center;
-                margin-bottom: 15px;
-            }
+            .print-header { display: block !important; text-align: center; margin-bottom: 15px; }
             .print-header h2 { font-size: 1.6rem; margin: 0 0 6px 0; color: #000; }
             .print-header p { font-size: 0.85rem; color: #333; margin: 0; border-bottom: 1px solid #ccc; padding-bottom: 8px; }
-
             table { border: 1px solid #ccc; font-size: 0.85rem; }
             th, td { border: 1px solid #ccc; padding: 6px 8px; }
             .group-header { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -343,8 +326,8 @@
                     </div>
                 </form>
                 <div class="button-group" style="margin-top: 16px;">
-                    <input type="file" id="file-input" accept=".xlsx, .xls" style="display: none;">
-                    <button type="button" class="btn btn-secondary" id="btn-import-xlsx" style="width: 100%;">Importar XLSX</button>
+                    <input type="file" id="file-input" accept=".xlsx, .xls, .csv" style="display: none;">
+                    <button type="button" class="btn btn-secondary" id="btn-import-xlsx" style="width: 100%;">Importar XLSX / CSV</button>
                 </div>
             </div>
         </div>
@@ -355,7 +338,7 @@
                 <div class="card-header">
                     <h2>Contagem de Estoque Loja</h2>
                     <div class="filter-buttons">
-                        <button class="toggle-button" data-filter="Açougue">Açougue</button>
+                        <button class="toggle-button active" data-filter="Açougue">Açougue</button>
                         <button class="toggle-button" data-filter="Hortifruti">Hortifruti</button>
                         <button class="toggle-button" data-filter="Outros">Outros</button>
                     </div>
@@ -440,7 +423,7 @@
         <div class="tab-content" data-tab="gerenciar">
             <div class="card">
                 <h2>Gerenciar Estoque</h2>
-                <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 20px;">Use as ferramentas abaixo para gerenciar seu estoque de forma geral. Cuidado, esta ação não pode ser desfeita.</p>
+                <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 20px;">Use as ferramentas abaixo para gerenciar seu estoque. Para executar qualquer ação de exclusão, é necessário digitar <strong>APAGAR</strong> na Descrição do Item na aba correspondente.</p>
                 <div class="button-group" style="flex-direction: column; gap: 12px;">
                     <button type="button" class="btn btn-danger" id="btn-clear-inventory" style="padding: 12px; width: 100%;">Apagar todas as contagens da Loja</button>
                     <button type="button" class="btn btn-danger" id="btn-clear-sector" style="padding: 12px; width: 100%;">Apagar produtos do setor atual</button>
@@ -449,7 +432,7 @@
         </div>
     </div>
 
-    <!-- MODAIS E SCRIPTS MANTIDOS INTEGRALMENTE -->
+    <!-- MODAIS -->
     <div id="modal-history" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
@@ -477,7 +460,7 @@
                 <h2 style="margin:0;">Itens com Quantidade Não Informada</h2>
                 <button class="close-button" onclick="closeZeroStockModal()">&times;</button>
             </div>
-            <p style="color: #64748b; font-size: 0.9rem;">Abaixo estão os produtos cadastrados que ainda não foram contados.</p>
+            <p style="color: #64748b; font-size: 0.9rem;">Abaixo estão os produtos cadastrados que ainda não foram contados no setor selecionado.</p>
             <div id="zero-stock-list"></div>
         </div>
     </div>
@@ -496,7 +479,7 @@
         let products = JSON.parse(localStorage.getItem('products_db')) || [];
         let inventory = JSON.parse(localStorage.getItem('inventory_db')) || [];
 
-        let currentSectorFilter = '';
+        let currentSectorFilter = 'Açougue';
         let html5QrCodeScanner = null;
         let activeBarcodeTargetInputId = null;
         let clickTimer = null;
@@ -513,10 +496,11 @@
             el.textContent = text;
             el.className = `message ${type}`;
             el.style.display = 'block';
-            setTimeout(() => { el.style.display = 'none'; }, 3000);
+            setTimeout(() => { el.style.display = 'none'; }, 3500);
         }
 
-        const tabButtons = document.querySelectorAll('.tab-button');
+        // TROCA DE ABAS
+        const tabButtons = document.querySelectorAll('.tab-buttons .tab-button');
         const tabContents = document.querySelectorAll('.tab-content');
 
         tabButtons.forEach(btn => {
@@ -532,22 +516,20 @@
             });
         });
 
+        // TROCA DE SETOR NA ABA ESTOQUE
         const toggleButtons = document.querySelectorAll('.toggle-button');
         toggleButtons.forEach(btn => {
             btn.addEventListener('click', () => {
-                const sector = btn.getAttribute('data-filter');
-                if (currentSectorFilter === sector) {
-                    currentSectorFilter = '';
-                    btn.classList.remove('active');
-                } else {
-                    toggleButtons.forEach(b => b.classList.remove('active'));
-                    currentSectorFilter = sector;
-                    btn.classList.add('active');
-                }
+                toggleButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentSectorFilter = btn.getAttribute('data-filter');
+                document.getElementById('form-estoque').reset();
+                document.getElementById('inventory-sysmo').value = '';
                 renderInventoryList();
             });
         });
 
+        // PESQUISA NO CADASTRO
         const productCodeInput = document.getElementById('product-code');
         const productGtinInput = document.getElementById('product-gtin');
         const btnSearchProduct = document.getElementById('btn-search-product');
@@ -561,7 +543,16 @@
         btnSearchProduct.addEventListener('click', () => {
             const codeVal = productCodeInput.value.trim();
             const gtinVal = productGtinInput.value.trim();
-            let found = products.find(p => String(p.code) === codeVal || (gtinVal && String(p.gtin) === gtinVal));
+            const selectedSector = document.getElementById('product-sector').value;
+
+            let found = products.find(p => 
+                (String(p.code) === codeVal || (gtinVal && String(p.gtin) === gtinVal)) &&
+                (!selectedSector || p.sector === selectedSector)
+            );
+
+            if (!found) {
+                found = products.find(p => String(p.code) === codeVal || (gtinVal && String(p.gtin) === gtinVal));
+            }
 
             if (found) {
                 document.getElementById('product-code').value = found.code;
@@ -569,12 +560,13 @@
                 document.getElementById('product-description').value = found.description;
                 document.getElementById('product-sysmo').value = found.sysmo;
                 document.getElementById('product-sector').value = found.sector;
-                showMessage('message-cadastro', 'Produto encontrado!', 'success');
+                showMessage('message-cadastro', `Produto encontrado no setor ${found.sector}!`, 'success');
             } else {
                 showMessage('message-cadastro', 'Produto não encontrado.', 'error');
             }
         });
 
+        // SALVAR CADASTRO MANUAL
         document.getElementById('form-cadastro').addEventListener('submit', (e) => {
             e.preventDefault();
             const code = document.getElementById('product-code').value.trim();
@@ -583,36 +575,62 @@
             const sysmo = parseFloat(document.getElementById('product-sysmo').value) || 0;
             const sector = document.getElementById('product-sector').value;
 
-            const existingIndex = products.findIndex(p => String(p.code) === code);
-            if (existingIndex >= 0) {
-                products[existingIndex] = { code, gtin, description, sysmo, sector };
-                showMessage('message-cadastro', 'Produto atualizado!', 'success');
+            if (!sector) {
+                return showMessage('message-cadastro', 'Selecione um setor obrigatório!', 'error');
+            }
+
+            // Busca produto exato no mesmo setor
+            const exactIndex = products.findIndex(p => String(p.code) === code && p.sector === sector);
+            
+            // Busca se o produto já existe em outro setor
+            const otherSectorMatch = products.find(p => String(p.code) === code && p.sector !== sector);
+
+            if (exactIndex >= 0) {
+                products[exactIndex] = { code, gtin, description, sysmo, sector };
+                showMessage('message-cadastro', 'Produto atualizado no setor atual!', 'success');
             } else {
                 products.push({ code, gtin, description, sysmo, sector });
-                showMessage('message-cadastro', 'Produto cadastrado!', 'success');
+                if (otherSectorMatch) {
+                    alert(`Aviso: Este produto (Código: ${code}) já existe no setor "${otherSectorMatch.sector}". Ele foi adicionado com sucesso ao setor "${sector}".`);
+                    showMessage('message-cadastro', `Produto cadastrado no setor "${sector}" (já existente em "${otherSectorMatch.sector}")`, 'success');
+                } else {
+                    showMessage('message-cadastro', 'Produto cadastrado com sucesso!', 'success');
+                }
             }
+
             saveToStorage();
             document.getElementById('form-cadastro').reset();
             checkSearchButtonState();
         });
 
+        // EXCLUIR ITEM CADASTRO
         document.getElementById('btn-delete-product').addEventListener('click', () => {
             const code = document.getElementById('product-code').value.trim();
+            const sector = document.getElementById('product-sector').value;
+            
             if (!code) return showMessage('message-cadastro', 'Informe o Código.', 'error');
-            const index = products.findIndex(p => String(p.code) === code);
+            
+            const index = products.findIndex(p => String(p.code) === code && (!sector || p.sector === sector));
+            
             if (index >= 0 && confirm(`Excluir o produto código ${code}?`)) {
                 products.splice(index, 1);
                 saveToStorage();
                 document.getElementById('form-cadastro').reset();
                 checkSearchButtonState();
                 showMessage('message-cadastro', 'Produto excluído!', 'success');
+            } else {
+                showMessage('message-cadastro', 'Produto não localizado para exclusão.', 'error');
             }
         });
 
+        // IMPORTAR EXCEL OU CSV COM SUPORTE A DIVERSOS SETORES
         document.getElementById('btn-import-xlsx').addEventListener('click', () => document.getElementById('file-input').click());
         document.getElementById('file-input').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
+
+            const selectedSector = document.getElementById('product-sector').value;
+
             const reader = new FileReader();
             reader.onload = function(evt) {
                 try {
@@ -620,7 +638,10 @@
                     const workbook = XLSX.read(data, { type: 'array' });
                     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                     const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                    let imported = 0;
+                    
+                    let importedCount = 0;
+                    let skippedCount = 0;
+                    let otherSectorCount = 0;
 
                     for (let i = 1; i < rows.length; i++) {
                         const row = rows[i];
@@ -629,41 +650,87 @@
                         const gtin = row[1] ? String(row[1]).trim() : '';
                         const description = row[2] ? String(row[2]).trim() : '';
                         const sysmo = parseFloat(row[3]) || 0;
-                        const sector = row[4] ? String(row[4]).trim() : 'Outros';
+                        
+                        let sector = row[4] ? String(row[4]).trim() : selectedSector;
+
+                        if (!sector) {
+                            alert("Selecione um 'Setor' no formulário para importar o arquivo ou adicione a coluna Setor na planilha!");
+                            return;
+                        }
 
                         if (code && description) {
-                            const idx = products.findIndex(p => String(p.code) === code);
-                            if (idx >= 0) products[idx] = { code, gtin, description, sysmo, sector };
-                            else products.push({ code, gtin, description, sysmo, sector });
-                            imported++;
+                            // Verifica se existe exatamente neste setor
+                            const existsInSameSector = products.some(p => String(p.code) === code && p.sector === sector);
+                            // Verifica se existe em outro setor
+                            const existsInOtherSector = products.some(p => String(p.code) === code && p.sector !== sector);
+
+                            if (existsInSameSector) {
+                                skippedCount++;
+                            } else {
+                                products.push({ code, gtin, description, sysmo, sector });
+                                importedCount++;
+                                if (existsInOtherSector) {
+                                    otherSectorCount++;
+                                }
+                            }
                         }
                     }
                     saveToStorage();
-                    showMessage('message-cadastro', `${imported} produtos importados!`, 'success');
+
+                    let msg = `${importedCount} novos produtos importados.`;
+                    if (skippedCount > 0) {
+                        msg += ` ${skippedCount} ignorados (já existiam no MESMO setor).`;
+                    }
+
+                    if (otherSectorCount > 0) {
+                        alert(`Atenção: ${importedCount} produtos foram cadastrados!\n\nNota: ${otherSectorCount} destes itens já estavam cadastrados em OUTROS setores e foram adicionados também a este novo setor.`);
+                    } else if (skippedCount > 0) {
+                        alert(`Importação concluída com avisos:\n\n- ${importedCount} produtos importados.\n- ${skippedCount} produtos foram ignorados por JÁ ESTAREM CADASTRADOS NO MESMO SETOR.`);
+                    } else {
+                        alert(`Importação concluída: ${importedCount} produtos cadastrados com sucesso!`);
+                    }
+
+                    showMessage('message-cadastro', msg, importedCount > 0 ? 'success' : 'error');
+
                 } catch (err) {
-                    showMessage('message-cadastro', 'Erro ao ler XLSX.', 'error');
+                    showMessage('message-cadastro', 'Erro ao ler arquivo.', 'error');
                 }
             };
             reader.readAsArrayBuffer(file);
             e.target.value = '';
         });
 
+        // VALIDAÇÃO AO DIGITAR/BIPAR NA ABA ESTOQUE
         const inventoryCodeInput = document.getElementById('inventory-code');
         const inventoryGtinInput = document.getElementById('inventory-gtin');
+
         function autoFillInventory() {
             const codeVal = inventoryCodeInput.value.trim();
             const gtinVal = inventoryGtinInput.value.trim();
-            let found = products.find(p => String(p.code) === codeVal || (gtinVal && String(p.gtin) === gtinVal));
+            if (!codeVal && !gtinVal) return;
+
+            let found = products.find(p => (String(p.code) === codeVal || (gtinVal && String(p.gtin) === gtinVal)) && p.sector === currentSectorFilter);
+            
             if (found) {
                 inventoryCodeInput.value = found.code;
                 inventoryGtinInput.value = found.gtin || '';
                 document.getElementById('inventory-description').value = found.description;
                 document.getElementById('inventory-sysmo').value = found.sysmo;
+            } else {
+                let foundInOtherSector = products.find(p => String(p.code) === codeVal || (gtinVal && String(p.gtin) === gtinVal));
+                if (foundInOtherSector) {
+                    showMessage('message-estoque', `Atenção: Este produto foi cadastrado apenas no setor "${foundInOtherSector.sector}"! Cadastre-o no setor "${currentSectorFilter}" para poder lançar estoque.`, 'error');
+                } else {
+                    showMessage('message-estoque', 'Produto não cadastrado no sistema!', 'error');
+                }
+                document.getElementById('form-estoque').reset();
+                document.getElementById('inventory-sysmo').value = '';
             }
         }
         inventoryCodeInput.addEventListener('blur', autoFillInventory);
         inventoryGtinInput.addEventListener('blur', autoFillInventory);
 
+        // SOMAR / SALVAR CONTAGEM
         document.getElementById('form-estoque').addEventListener('submit', (e) => {
             e.preventDefault();
             const code = document.getElementById('inventory-code').value.trim();
@@ -672,9 +739,12 @@
             const sysmo = parseFloat(document.getElementById('inventory-sysmo').value) || 0;
             const quantityToAdd = parseFloat(document.getElementById('inventory-quantity').value) || 0;
 
-            let prod = products.find(p => String(p.code) === code);
-            const sector = prod ? prod.sector : 'Outros';
-            let invItem = inventory.find(i => String(i.code) === code);
+            let prod = products.find(p => String(p.code) === code && p.sector === currentSectorFilter);
+            if (!prod) {
+                return showMessage('message-estoque', `Este produto não está cadastrado no setor "${currentSectorFilter}"!`, 'error');
+            }
+
+            let invItem = inventory.find(i => String(i.code) === code && i.sector === currentSectorFilter);
             const dateStr = new Date().toLocaleString('pt-BR');
             const type = quantityToAdd >= 0 ? 'Entrada' : 'Saída';
 
@@ -683,7 +753,7 @@
                 invItem.history.push({ date: dateStr, quantity: quantityToAdd, type, totalAfter: invItem.counted });
             } else {
                 invItem = {
-                    code, gtin, description, sysmo, sector, counted: quantityToAdd,
+                    code, gtin, description, sysmo, sector: prod.sector, counted: quantityToAdd,
                     history: [{ date: dateStr, quantity: quantityToAdd, type, totalAfter: quantityToAdd }]
                 };
                 inventory.push(invItem);
@@ -697,8 +767,10 @@
         });
 
         function selectItemForEditing(code) {
-            let item = inventory.find(i => String(i.code) === String(code)) || products.find(p => String(p.code) === String(code));
+            let item = inventory.find(i => String(i.code) === String(code) && i.sector === currentSectorFilter) || 
+                       products.find(p => String(p.code) === String(code) && p.sector === currentSectorFilter);
             if (!item) return;
+
             document.getElementById('inventory-code').value = item.code;
             document.getElementById('inventory-gtin').value = item.gtin || '';
             document.getElementById('inventory-description').value = item.description;
@@ -711,10 +783,10 @@
         function renderInventoryList() {
             const listEl = document.getElementById('inventory-list');
             listEl.innerHTML = '';
-            let filtered = currentSectorFilter ? inventory.filter(i => i.sector === currentSectorFilter) : inventory;
+            let filtered = inventory.filter(i => i.sector === currentSectorFilter);
 
             if (filtered.length === 0) {
-                listEl.innerHTML = '<li style="padding:10px; color:#64748b;">Nenhum item contado neste setor.</li>';
+                listEl.innerHTML = `<li style="padding:10px; color:#64748b;">Nenhum item contado no setor <strong>${currentSectorFilter}</strong>.</li>`;
                 return;
             }
 
@@ -733,7 +805,7 @@
                 li.innerHTML = `
                     <div>
                         <strong>${item.code}: ${item.description}</strong>
-                        <div style="font-size: 0.8rem; color: #64748b;">Setor: ${item.sector || 'Outros'}</div>
+                        <div style="font-size: 0.8rem; color: #64748b;">Setor: ${item.sector}</div>
                     </div>
                     <span>Total Contado: <strong style="color:#007bff; font-size:1.05rem;">${item.counted}</strong> | SYSMO: ${item.sysmo} 📋</span>
                 `;
@@ -742,10 +814,10 @@
         }
 
         function openHistoryModal(code) {
-            const item = inventory.find(i => String(i.code) === String(code));
+            const item = inventory.find(i => String(i.code) === String(code) && i.sector === currentSectorFilter);
             if (!item || !item.history) return;
 
-            document.getElementById('history-item-title').textContent = `Item: ${item.code} - ${item.description} (${item.sector || 'Outros'})`;
+            document.getElementById('history-item-title').textContent = `Item: ${item.code} - ${item.description} (${item.sector})`;
             const tbody = document.getElementById('history-table-body');
             tbody.innerHTML = '';
 
@@ -769,11 +841,10 @@
         document.getElementById('open-zero-stock').addEventListener('click', () => {
             const zeroListEl = document.getElementById('zero-stock-list');
             zeroListEl.innerHTML = '';
-            let uncounted = products.filter(p => !inventory.some(i => String(i.code) === String(p.code)));
-            if (currentSectorFilter) uncounted = uncounted.filter(p => p.sector === currentSectorFilter);
+            let uncounted = products.filter(p => p.sector === currentSectorFilter && !inventory.some(i => String(i.code) === String(p.code) && i.sector === currentSectorFilter));
 
             if (uncounted.length === 0) {
-                zeroListEl.innerHTML = '<p style="color:#0f5132;">Todos os produtos cadastrados deste setor foram contados!</p>';
+                zeroListEl.innerHTML = `<p style="color:#0f5132;">Todos os produtos cadastrados do setor <strong>${currentSectorFilter}</strong> foram contados!</p>`;
             } else {
                 const ul = document.createElement('ul');
                 ul.style.listStyle = 'none'; ul.style.padding = '0';
@@ -797,6 +868,7 @@
 
         function closeZeroStockModal() { document.getElementById('modal-zero-stock').style.display = 'none'; }
 
+        // RELATÓRIOS
         document.getElementById('btn-sort-alpha').addEventListener('click', () => {
             reportSortType = 'alpha';
             document.getElementById('btn-sort-alpha').className = 'btn btn-primary btn-pill';
@@ -812,9 +884,9 @@
         });
 
         function getReportData() {
-            let list = currentSectorFilter ? products.filter(p => p.sector === currentSectorFilter) : [...products];
+            let list = products.filter(p => p.sector === currentSectorFilter);
             return list.map(p => {
-                const inv = inventory.find(i => String(i.code) === String(p.code));
+                const inv = inventory.find(i => String(i.code) === String(p.code) && i.sector === currentSectorFilter);
                 const hasCounted = !!inv;
                 const countedVal = hasCounted ? inv.counted : 0;
                 const diff = countedVal - p.sysmo;
@@ -866,7 +938,7 @@
             let totalLoja = 0;
 
             if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#64748b;">Nenhum produto cadastrado para o filtro atual.</td></tr>';
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#64748b;">Nenhum produto cadastrado para o setor <strong>${currentSectorFilter}</strong>.</td></tr>`;
                 document.getElementById('report-summary').innerHTML = '';
                 return;
             }
@@ -898,7 +970,7 @@
             const orgText = reportSortType === 'alpha' ? 'Ordem Alfabética' : 'Separado por Tipo';
             document.getElementById('pdf-header').innerHTML = `
                 <h2>Relatório de Diferença de Estoque</h2>
-                <p>Setor: <strong>${currentSectorFilter || 'Geral'}</strong> | Organização: <strong>${orgText}</strong> | Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
+                <p>Setor: <strong>${currentSectorFilter}</strong> | Organização: <strong>${orgText}</strong> | Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
             `;
         }
 
@@ -935,27 +1007,22 @@
             const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = `Relatorio_Diferenca_${currentSectorFilter || 'Geral'}.csv`;
+            link.download = `Relatorio_Diferenca_${currentSectorFilter}.csv`;
             link.click();
         });
 
-        document.getElementById('btn-export-pdf').addEventListener('click', () => {
-            window.print();
-        });
+        document.getElementById('btn-export-pdf').addEventListener('click', () => { window.print(); });
 
         document.getElementById('btn-relatorio-geral').addEventListener('click', () => {
-            let filterText = currentSectorFilter ? ` (${currentSectorFilter})` : ' (Geral)';
-            let list = currentSectorFilter ? products.filter(p => p.sector === currentSectorFilter) : products;
-            
+            let list = products.filter(p => p.sector === currentSectorFilter);
             if (list.length === 0) return alert("Nenhum produto cadastrado para exibir!");
 
             let totalSysmo = 0;
-
             let reportWin = window.open('', '_blank');
             let html = `
                 <html>
                 <head>
-                    <title>Relatório Geral de Produtos${filterText}</title>
+                    <title>Relatório Geral de Produtos (${currentSectorFilter})</title>
                     <style>
                         body { font-family: sans-serif; padding: 20px; }
                         h2 { color: #1e293b; margin-bottom: 5px; }
@@ -966,7 +1033,7 @@
                     </style>
                 </head>
                 <body>
-                    <h2>Relatório Geral de Produtos${filterText}</h2>
+                    <h2>Relatório Geral de Produtos (${currentSectorFilter})</h2>
                     <p>Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
                     <table>
                         <thead>
@@ -1004,26 +1071,46 @@
             reportWin.document.close();
         });
 
+        // EXCLUSÃO SEGURA
         document.getElementById('btn-clear-inventory').addEventListener('click', () => {
-            if (confirm("Apagar todas as contagens gravadas na Loja?")) {
+            const estoqueDesc = document.getElementById('inventory-description').value.trim();
+
+            if (estoqueDesc !== 'APAGAR') {
+                return alert("Ação bloqueada! Para apagar todas as contagens, vá até a aba 'Estoque' e digite a palavra APAGAR em maiúsculas no campo 'Descrição do Item'.");
+            }
+
+            if (confirm("Confirma que deseja apagar TODAS as contagens registradas em todos os setores?")) {
                 inventory = [];
                 saveToStorage();
                 renderInventoryList();
-                alert("Contagens apagadas!");
+                document.getElementById('inventory-description').value = '';
+                alert("Todas as contagens foram apagadas com sucesso!");
             }
         });
 
         document.getElementById('btn-clear-sector').addEventListener('click', () => {
-            if (!currentSectorFilter) return alert("Selecione um setor na aba Estoque primeiro.");
-            if (confirm(`Apagar todos os dados e contagens do setor ${currentSectorFilter}?`)) {
-                inventory = inventory.filter(i => i.sector !== currentSectorFilter);
-                products = products.filter(p => p.sector !== currentSectorFilter);
+            const cadastroDesc = document.getElementById('product-description').value.trim();
+            const cadastroSector = document.getElementById('product-sector').value;
+
+            if (cadastroDesc !== 'APAGAR') {
+                return alert("Ação bloqueada! Para apagar o setor, vá até a aba 'Cadastro de Produtos', selecione o setor correto e digite a palavra APAGAR em maiúsculas no campo 'Descrição do Item'.");
+            }
+
+            if (!cadastroSector) {
+                return alert("Selecione qual setor deseja apagar no campo 'Setor' da aba Cadastro de Produtos!");
+            }
+
+            if (confirm(`Confirma que deseja apagar TODOS os produtos e contagens do setor "${cadastroSector}"?`)) {
+                inventory = inventory.filter(i => i.sector !== cadastroSector);
+                products = products.filter(p => p.sector !== cadastroSector);
                 saveToStorage();
                 renderInventoryList();
-                alert(`Setor ${currentSectorFilter} limpo com sucesso!`);
+                document.getElementById('product-description').value = '';
+                alert(`Todos os dados do setor ${cadastroSector} foram apagados com sucesso!`);
             }
         });
 
+        // LEITOR BARCODE
         function startBarcodeScan(inputId) {
             activeBarcodeTargetInputId = inputId;
             document.getElementById('modal-barcode').style.display = 'flex';
