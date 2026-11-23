@@ -623,7 +623,7 @@
             }
         });
 
-        // IMPORTAR EXCEL OU CSV COM SUPORTE A DIVERSOS SETORES
+        // IMPORTAR EXCEL OU CSV COM SUPORTE A RELATÓRIO SYSMO E DIVERSOS SETORES
         document.getElementById('btn-import-xlsx').addEventListener('click', () => document.getElementById('file-input').click());
         document.getElementById('file-input').addEventListener('change', (e) => {
             const file = e.target.files[0];
@@ -637,31 +637,71 @@
                     const data = new Uint8Array(evt.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
                     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
                     
                     let importedCount = 0;
                     let skippedCount = 0;
                     let otherSectorCount = 0;
 
-                    for (let i = 1; i < rows.length; i++) {
+                    function parseSysmoNumber(val) {
+                        if (typeof val === 'number') return val;
+                        if (!val) return 0;
+                        let str = String(val).trim();
+                        if (str.includes(',') && str.includes('.')) {
+                            str = str.replace(/\./g, '').replace(',', '.');
+                        } else if (str.includes(',')) {
+                            str = str.replace(',', '.');
+                        }
+                        const num = parseFloat(str);
+                        return isNaN(num) ? 0 : num;
+                    }
+
+                    function resolveSector(rawSector) {
+                        if (!rawSector) return selectedSector;
+                        const clean = String(rawSector).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+                        if (clean === 'acougue') return 'Açougue';
+                        if (clean === 'hortifruti') return 'Hortifruti';
+                        if (clean === 'outros') return 'Outros';
+                        return selectedSector;
+                    }
+
+                    for (let i = 0; i < rows.length; i++) {
                         const row = rows[i];
-                        if (!row || !row[0]) continue;
-                        const code = String(row[0]).trim();
-                        const gtin = row[1] ? String(row[1]).trim() : '';
-                        const description = row[2] ? String(row[2]).trim() : '';
-                        const sysmo = parseFloat(row[3]) || 0;
-                        
-                        let sector = row[4] ? String(row[4]).trim() : selectedSector;
+                        if (!row || row.length === 0) continue;
+
+                        const firstCell = String(row[0]).trim();
+                        // Ignora linhas vazias, cabeçalhos de texto ou rodapés ("Processado por: ...")
+                        if (!firstCell || !/^\d+$/.test(firstCell)) continue;
+
+                        const code = firstCell;
+                        let gtin = '';
+                        let description = '';
+                        let sysmo = 0;
+                        let sector = selectedSector;
+
+                        // Detecta o formato de relatório exportado do SYSMO (Col A = Código, Col D = GTIN, Col H = Descrição, Col K = Qtd SYSMO)
+                        const isSysmoWideReport = row.length >= 8 && String(row[7]).trim() !== '' && (String(row[2]).trim() === '' || String(row[1]).toUpperCase().includes('LTDA') || String(row[1]).toUpperCase().includes('SUPERMERCADO'));
+
+                        if (isSysmoWideReport) {
+                            gtin = row[3] !== undefined && row[3] !== '' ? String(row[3]).trim().replace(/\.0$/, '') : '';
+                            description = String(row[7]).trim();
+                            sysmo = row.length > 10 ? parseSysmoNumber(row[10]) : 0;
+                            sector = selectedSector;
+                        } else {
+                            gtin = row[1] !== undefined && row[1] !== '' ? String(row[1]).trim().replace(/\.0$/, '') : '';
+                            description = row[2] !== undefined ? String(row[2]).trim() : '';
+                            sysmo = row[3] !== undefined ? parseSysmoNumber(row[3]) : 0;
+                            const rawSec = row[4] !== undefined ? String(row[4]).trim() : '';
+                            sector = resolveSector(rawSec);
+                        }
 
                         if (!sector) {
-                            alert("Selecione um 'Setor' no formulário para importar o arquivo ou adicione a coluna Setor na planilha!");
+                            alert("Selecione um 'Setor' no formulário antes de importar o arquivo!");
                             return;
                         }
 
                         if (code && description) {
-                            // Verifica se existe exatamente neste setor
                             const existsInSameSector = products.some(p => String(p.code) === code && p.sector === sector);
-                            // Verifica se existe em outro setor
                             const existsInOtherSector = products.some(p => String(p.code) === code && p.sector !== sector);
 
                             if (existsInSameSector) {
