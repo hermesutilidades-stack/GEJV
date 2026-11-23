@@ -485,6 +485,10 @@
         let clickTimer = null;
         let reportSortType = 'alpha';
 
+        function fixDecimal(num) {
+            return Math.round((Number(num) + Number.EPSILON) * 1000) / 1000;
+        }
+
         function saveToStorage() {
             localStorage.setItem('products_db', JSON.stringify(products));
             localStorage.setItem('inventory_db', JSON.stringify(inventory));
@@ -777,7 +781,7 @@
             const gtin = document.getElementById('inventory-gtin').value.trim();
             const description = document.getElementById('inventory-description').value.trim();
             const sysmo = parseFloat(document.getElementById('inventory-sysmo').value) || 0;
-            const quantityToAdd = parseFloat(document.getElementById('inventory-quantity').value) || 0;
+            const quantityToAdd = fixDecimal(parseFloat(document.getElementById('inventory-quantity').value) || 0);
 
             let prod = products.find(p => String(p.code) === code && p.sector === currentSectorFilter);
             if (!prod) {
@@ -789,7 +793,7 @@
             const type = quantityToAdd >= 0 ? 'Entrada' : 'Saída';
 
             if (invItem) {
-                invItem.counted += quantityToAdd;
+                invItem.counted = fixDecimal(invItem.counted + quantityToAdd);
                 invItem.history.push({ date: dateStr, quantity: quantityToAdd, type, totalAfter: invItem.counted });
             } else {
                 invItem = {
@@ -847,7 +851,7 @@
                         <strong>${item.code}: ${item.description}</strong>
                         <div style="font-size: 0.8rem; color: #64748b;">Setor: ${item.sector}</div>
                     </div>
-                    <span>Total Contado: <strong style="color:#007bff; font-size:1.05rem;">${item.counted}</strong> | SYSMO: ${item.sysmo} 📋</span>
+                    <span>Total Contado: <strong style="color:#007bff; font-size:1.05rem;">${fixDecimal(item.counted)}</strong> | SYSMO: ${item.sysmo} 📋</span>
                 `;
                 listEl.appendChild(li);
             });
@@ -867,9 +871,9 @@
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${h.date}</td>
-                    <td class="${qtyClass}">${h.quantity}</td>
+                    <td class="${qtyClass}">${fixDecimal(h.quantity)}</td>
                     <td>${h.type}</td>
-                    <td><strong>${h.totalAfter}</strong></td>
+                    <td><strong>${fixDecimal(h.totalAfter)}</strong></td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -928,8 +932,8 @@
             return list.map(p => {
                 const inv = inventory.find(i => String(i.code) === String(p.code) && i.sector === currentSectorFilter);
                 const hasCounted = !!inv;
-                const countedVal = hasCounted ? inv.counted : 0;
-                const diff = countedVal - p.sysmo;
+                const countedVal = hasCounted ? fixDecimal(inv.counted) : 0;
+                const diff = fixDecimal(countedVal - p.sysmo);
 
                 let status = 'ok';
                 let diffText = '0';
@@ -938,9 +942,9 @@
 
                 if (!hasCounted) {
                     status = 'saida';
-                    diffText = `-${p.sysmo}`;
+                    diffText = `-${fixDecimal(p.sysmo)}`;
                     badgeClass = 'badge-saida';
-                    badgeLabel = `Saída (-${p.sysmo})`;
+                    badgeLabel = `Saída (-${fixDecimal(p.sysmo)})`;
                 } else if (diff < 0) {
                     status = 'saida';
                     diffText = `${diff}`;
@@ -957,7 +961,7 @@
                     code: p.code,
                     gtin: p.gtin || '',
                     description: p.description,
-                    sysmo: p.sysmo,
+                    sysmo: fixDecimal(p.sysmo),
                     countedVal: countedVal,
                     countedDisplay: hasCounted ? countedVal : 'Não contado',
                     diff: diffText,
@@ -987,8 +991,8 @@
                 data.sort((a, b) => a.description.localeCompare(b.description));
                 data.forEach(item => {
                     appendReportRow(tbody, item);
-                    totalSysmo += item.sysmo;
-                    totalLoja += item.countedVal;
+                    totalSysmo = fixDecimal(totalSysmo + item.sysmo);
+                    totalLoja = fixDecimal(totalLoja + item.countedVal);
                 });
             } else {
                 const saida = data.filter(d => d.status === 'saida');
@@ -996,13 +1000,13 @@
                 const ok = data.filter(d => d.status === 'ok');
 
                 appendGroupHeader(tbody, `🔻 ITENS DE SAÍDA / DIVERGÊNCIA NEGATIVA (${saida.length})`);
-                saida.forEach(item => { appendReportRow(tbody, item); totalSysmo += item.sysmo; totalLoja += item.countedVal; });
+                saida.forEach(item => { appendReportRow(tbody, item); totalSysmo = fixDecimal(totalSysmo + item.sysmo); totalLoja = fixDecimal(totalLoja + item.countedVal); });
 
                 appendGroupHeader(tbody, `🔺 ITENS DE ENTRADA / DIVERGÊNCIA POSITIVA (${entrada.length})`);
-                entrada.forEach(item => { appendReportRow(tbody, item); totalSysmo += item.sysmo; totalLoja += item.countedVal; });
+                entrada.forEach(item => { appendReportRow(tbody, item); totalSysmo = fixDecimal(totalSysmo + item.sysmo); totalLoja = fixDecimal(totalLoja + item.countedVal); });
 
                 appendGroupHeader(tbody, `✅ ITENS SEM DIVERGÊNCIA / OK (${ok.length})`);
-                ok.forEach(item => { appendReportRow(tbody, item); totalSysmo += item.sysmo; totalLoja += item.countedVal; });
+                ok.forEach(item => { appendReportRow(tbody, item); totalSysmo = fixDecimal(totalSysmo + item.sysmo); totalLoja = fixDecimal(totalLoja + item.countedVal); });
             }
 
             document.getElementById('report-summary').innerHTML = `Total SYSMO: ${totalSysmo} | Total Contado na Loja: ${totalLoja}`;
@@ -1088,13 +1092,13 @@
             `;
 
             list.forEach(p => {
-                totalSysmo += p.sysmo;
+                totalSysmo = fixDecimal(totalSysmo + p.sysmo);
                 html += `
                     <tr>
                         <td>${p.code}</td>
                         <td>${p.gtin || ''}</td>
                         <td>${p.description}</td>
-                        <td>${p.sysmo}</td>
+                        <td>${fixDecimal(p.sysmo)}</td>
                     </tr>
                 `;
             });
